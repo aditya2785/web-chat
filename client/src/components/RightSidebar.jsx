@@ -9,12 +9,16 @@ const RightSidebar = () => {
   const [msgImages, setMsgImages] = useState([]);
 
   useEffect(() => {
-    const images = messages
-        .filter((msg) => msg.image) // consistent image property
+    if (messages && messages.length > 0) {
+      // Collect only valid image messages
+      const images = messages
+        .filter((msg) => msg.image && typeof msg.image === "string")
         .map((msg) => msg.image);
-    setMsgImages(images);
-}, [messages]);
-
+      setMsgImages(images);
+    } else {
+      setMsgImages([]);
+    }
+  }, [messages]);
 
   return (
     selectedUser && (
@@ -36,7 +40,9 @@ const RightSidebar = () => {
             )}
             {selectedUser.fullName}
           </h1>
-          <p className="text-sm text-gray-300 max-w-[200px]">{selectedUser.bio}</p>
+          <p className="text-sm text-gray-300 max-w-[200px]">
+            {selectedUser.bio}
+          </p>
         </div>
 
         <hr className="border-[#ffffff30] my-5" />
@@ -54,8 +60,8 @@ const RightSidebar = () => {
                 >
                   <img
                     src={url}
-                    alt=""
-                    className="w-full aspect-square object-cover"
+                    alt={`media-${index}`}
+                    className="w-full h-32 object-cover rounded-lg"
                   />
                 </div>
               ))

@@ -86,23 +86,24 @@ const ChatContainer = () => {
             }`}
           >
             {msg.image ? (
-              <img
-                src={msg.image}
-                alt=""
-                onClick={() => window.open(msg.image, "_blank")}
-                className="max-w-[80%] md:max-w-[400px] rounded-lg shadow-md border border-gray-700 cursor-pointer hover:opacity-90 transition"
-              />
-            ) : (
-              <p
-                className={`p-3 max-w-[70%] md:max-w-[400px] text-sm font-light rounded-lg break-words bg-violet-500/30 text-white ${
-                  msg.senderId === authUser._id
-                    ? "rounded-br-none"
-                    : "rounded-bl-none"
-                }`}
-              >
-                {msg.text}
-              </p>
-            )}
+  <img
+    src={msg.image}
+    alt=""
+    onClick={() => window.open(msg.image, "_blank")}
+    className="max-w-[80%] md:max-w-[400px] max-h-[300px] rounded-lg shadow-md border border-gray-700 cursor-pointer hover:opacity-90 transition object-contain bg-black"
+  />
+) : (
+  <p
+    className={`p-3 max-w-[70%] md:max-w-[400px] text-sm font-light rounded-lg break-words bg-violet-500/30 text-white ${
+      msg.senderId === authUser._id
+        ? "rounded-br-none"
+        : "rounded-bl-none"
+    }`}
+  >
+    {msg.text}
+  </p>
+)}
+
             <div className="text-center text-xs text-gray-400">
               <img
                 src={
