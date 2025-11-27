@@ -12,6 +12,8 @@ const ChatContainer = () => {
 
   const scrollEnd = useRef();
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [imageModal, setImageModal] = useState(null);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -22,16 +24,26 @@ const ChatContainer = () => {
 
   const handleSendImage = async (e) => {
     const file = e.target.files[0];
-    if (!file || !file.type.startsWith("image/")) {
-      toast.error("Select an image file");
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Only jpg, png, and webp images are allowed");
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      await sendMessage({ image: reader.result });
-      e.target.value = "";
-    };
-    reader.readAsDataURL(file);
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setLoading(true);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    await sendMessage(formData);
+    setLoading(false);
+    e.target.value = "";
   };
 
   useEffect(() => {
@@ -86,23 +98,23 @@ const ChatContainer = () => {
             }`}
           >
             {msg.image ? (
-  <img
-    src={msg.image}
-    alt=""
-    onClick={() => window.open(msg.image, "_blank")}
-    className="max-w-[80%] md:max-w-[400px] max-h-[300px] rounded-lg shadow-md border border-gray-700 cursor-pointer hover:opacity-90 transition object-contain bg-black"
-  />
-) : (
-  <p
-    className={`p-3 max-w-[70%] md:max-w-[400px] text-sm font-light rounded-lg break-words bg-violet-500/30 text-white ${
-      msg.senderId === authUser._id
-        ? "rounded-br-none"
-        : "rounded-bl-none"
-    }`}
-  >
-    {msg.text}
-  </p>
-)}
+              <img
+                src={msg.image}
+                alt=""
+                onClick={() => setImageModal(msg.image)}
+                className="max-w-[80%] md:max-w-[400px] max-h-[300px] rounded-lg shadow-md border border-gray-700 cursor-pointer hover:opacity-90 transition object-contain bg-black"
+              />
+            ) : (
+              <p
+                className={`p-3 max-w-[70%] md:max-w-[400px] text-sm font-light rounded-2xl break-words ${
+                  msg.senderId === authUser._id
+                    ? "bg-violet-500/50 text-white rounded-br-none"
+                    : "bg-gray-100/10 text-white rounded-bl-none"
+                }`}
+              >
+                {msg.text}
+              </p>
+            )}
 
             <div className="text-center text-xs text-gray-400">
               <img
@@ -118,6 +130,13 @@ const ChatContainer = () => {
             </div>
           </div>
         ))}
+        {loading && (
+          <div className="flex items-end gap-2 justify-end">
+            <div className="w-20 h-20 rounded-lg bg-gray-500/20 flex items-center justify-center">
+              <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin"></div>
+            </div>
+          </div>
+        )}
         <div ref={scrollEnd}></div>
       </div>
 
@@ -138,7 +157,7 @@ const ChatContainer = () => {
             onChange={handleSendImage}
             type="file"
             id="image"
-            accept="image/png, image/jpeg"
+            accept="image/png, image/jpeg, image/webp"
             hidden
           />
           <label htmlFor="image">
@@ -156,6 +175,14 @@ const ChatContainer = () => {
           className="w-7 cursor-pointer"
         />
       </div>
+      {imageModal && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+          onClick={() => setImageModal(null)}
+        >
+          <img src={imageModal} alt="" className="max-w-[90%] max-h-[90%] object-contain" />
+        </div>
+      )}
     </div>
   ) : (
     <div className="flex flex-col items-center justify-center gap-2 text-gray-500 bg-white/10 max-md:hidden">
