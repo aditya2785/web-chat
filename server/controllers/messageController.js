@@ -2,6 +2,7 @@ import Message from "../models/message.js";
 import User from "../models/User.js";
 import cloudinary from "../lib/cloudinary.js";
 import { io, userSocketMap } from "../server.js";
+import fs from "fs";
 
 export const getUsersForSidebar = async (req, res) => {
     try {
@@ -56,14 +57,15 @@ export const markMessageAsSeen = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
     try {
-        const { text, image } = req.body;
+        const { text } = req.body;
         const receiverId = req.params.id;
         const senderId = req.user._id;
 
         let imageUrl;
-        if (image) {
-            const uploadResponse = await cloudinary.uploader.upload(image);
+        if (req.file) {
+            const uploadResponse = await cloudinary.uploader.upload(req.file.path);
             imageUrl = uploadResponse.secure_url;
+            fs.unlinkSync(req.file.path);
         }
 
         const newMessage = await Message.create({

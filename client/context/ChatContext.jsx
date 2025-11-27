@@ -42,7 +42,15 @@ export const ChatProvider = ({ children }) => {
   const sendMessage = async (messageData) => {
     if (!selectedUser) return;
     try {
-      const { data } = await axios.post(`/api/messages/send/${selectedUser._id}`, messageData);
+      const { data } = await axios.post(
+        `/api/messages/send/${selectedUser._id}`,
+        messageData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
       if (data.success) setMessages((prev) => [...prev, data.newMessage]);
       else toast.error(data.message);
     } catch (error) {
