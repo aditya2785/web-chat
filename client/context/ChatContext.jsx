@@ -8,17 +8,30 @@ export const ChatContext = createContext();
 export const ChatProvider = ({ children }) => {
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUser, _setSelectedUser] = useState(null);
   const [unseenMessages, setUnseenMessages] = useState({});
   const [typingUsers, setTypingUsers] = useState({});
-  const [autoScroll, setAutoScroll] = useState(true);   // ✅ NEW
+  const [autoScroll, setAutoScroll] = useState(true);
+
+  // MOBILE NAV: "sidebar" | "chat" | "profile"
+  const [mobileView, setMobileView] = useState("sidebar");
 
   const { socket, axios, authUser, onlineUsers } = useContext(AuthContext);
 
+  // keep latest selectedUser id in a ref for socket handlers
   const selectedUserIdRef = useRef(null);
   useEffect(() => {
     selectedUserIdRef.current = selectedUser?._id || null;
   }, [selectedUser]);
+
+  // wrapper to set selectedUser + helpful mobile behaviour
+  const setSelectedUser = (user) => {
+    _setSelectedUser(user);
+    // if on mobile, switch to chat view
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setMobileView("chat");
+    }
+  };
 
   // ================= GET USERS =================
   const getUsers = async () => {
@@ -30,6 +43,9 @@ export const ChatProvider = ({ children }) => {
       if (data.success) {
         setUsers(data.users || []);
         setUnseenMessages(data.unseenMessages || {});
+
+        // Ensure mobile shows sidebar after loading users (fix blank screens)
+        setMobileView("sidebar");
       } else {
         toast.error(data.message || "Failed to fetch users");
       }
@@ -100,22 +116,25 @@ export const ChatProvider = ({ children }) => {
   useEffect(() => {
     if (!socket || !authUser) return;
 
+    // NEW MESSAGE
     const handleNewMessage = async (message) => {
       const openChatId = selectedUserIdRef.current;
 
       if (openChatId && message.senderId === openChatId) {
-        // incoming message for open chat
+        // message belongs to currently open chat
         setMessages((prev) => [...prev, message]);
 
+        // mark seen on server
         try {
           await axios.put(`/api/messages/mark/${message._id}`);
         } catch (e) {
           console.error("Mark seen failed", e);
         }
 
-        setAutoScroll(true); // new message → scroll to bottom
+        // auto-scroll only if user is at bottom (ChatContainer should manage autoScroll state)
+        setAutoScroll(true);
       } else {
-        // message from another chat
+        // increment unseen count
         setUnseenMessages((prev) => ({
           ...prev,
           [message.senderId]: (prev[message.senderId] || 0) + 1,
@@ -123,33 +142,27 @@ export const ChatProvider = ({ children }) => {
       }
     };
 
+    // DELIVERED
     const handleDelivered = (id) => {
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === id ? { ...msg, delivered: true } : msg
-        )
+        prev.map((msg) => (msg._id === id ? { ...msg, delivered: true } : msg))
       );
     };
 
+    // SEEN
     const handleSeenUpdate = (id) => {
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === id ? { ...msg, seen: true } : msg
-        )
+        prev.map((msg) => (msg._id === id ? { ...msg, seen: true } : msg))
       );
     };
 
+    // TYPING
     const handleTyping = ({ senderId }) => {
-      setTypingUsers((prev) => ({
-        ...prev,
-        [senderId]: true,
-      }));
+      setTypingUsers((prev) => ({ ...prev, [senderId]: true }));
 
+      // clear after 2s
       setTimeout(() => {
-        setTypingUsers((prev) => ({
-          ...prev,
-          [senderId]: false,
-        }));
+        setTypingUsers((prev) => ({ ...prev, [senderId]: false }));
       }, 2000);
     };
 
@@ -164,9 +177,9 @@ export const ChatProvider = ({ children }) => {
       socket.off("messageSeenUpdate", handleSeenUpdate);
       socket.off("typing", handleTyping);
     };
-  }, [socket, authUser]);
+  }, [socket, authUser, axios]);
 
-  // ================= REFRESH USERS WHEN ONLINE CHANGES =================
+  // ================= RELOAD USERS WHEN AUTH / ONLINE CHANGES =================
   useEffect(() => {
     if (authUser?._id) {
       getUsers();
@@ -188,9 +201,16 @@ export const ChatProvider = ({ children }) => {
         typingUsers,
         emitTyping,
 
-        // NEW
+        // auto-scroll control
         autoScroll,
         setAutoScroll,
+
+        // mobile navigation
+        mobileView,
+        setMobileView,
+
+        // helper (optional)
+        openChat: setSelectedUser,
       }}
     >
       {children}
