@@ -12,65 +12,35 @@ import Message from "./models/message.js";
 const app = express();
 const server = http.createServer(app);
 
-// ✅ SAFE CLIENT URL PARSER
-const CLIENT_URLS = (process.env.CLIENT_URL || "")
-  .split(",")
-  .map(url => url.trim().replace(/\/$/, ""))
-  .filter(Boolean);
+// ✅ ALLOWED FRONTEND DOMAINS
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://web-chat-blush.vercel.app"
+];
 
-// ==================== SOCKET.IO ====================
+// ================= SOCKET.IO =================
 export const io = new Server(server, {
   cors: {
-    origin: CLIENT_URLS,
-    credentials: true,
-  },
+    origin: allowedOrigins,
+    credentials: true
+  }
 });
 
-export const userSocketMap = {};
-
-io.on("connection", (socket) => {
-  const userId = socket.handshake.query.userId;
-
-  if (userId) userSocketMap[userId] = socket.id;
-  io.emit("getOnlineUsers", Object.keys(userSocketMap));
-
-  socket.on("disconnect", () => {
-    delete userSocketMap[userId];
-    io.emit("getOnlineUsers", Object.keys(userSocketMap));
-  });
-
-  socket.on("typing", ({ senderId, receiverId }) => {
-    io.to(receiverId).emit("showTyping", senderId);
-  });
-
-  socket.on("stopTyping", ({ senderId, receiverId }) => {
-    io.to(receiverId).emit("hideTyping", senderId);
-  });
-});
-
-// ==================== MIDDLEWARE ====================
+// ================= MIDDLEWARE =================
 app.use(express.json({ limit: "10mb" }));
 
-// ✅ PERFECT CORS FIX (WORKS ON LOCAL + VERCEL)
 app.use(cors({
-  origin: (origin, callback) => {
+  origin: function(origin, callback) {
     if (!origin) return callback(null, true);
-
-    const cleanOrigin = origin.replace(/\/$/, "");
-
-    if (CLIENT_URLS.includes(cleanOrigin)) {
-      return callback(null, true);
-    }
-
-    console.error("❌ Blocked by CORS:", origin);
-    return callback(new Error("Blocked by CORS"));
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("CORS blocked: " + origin));
   },
-  credentials: true,
+  credentials: true
 }));
 
-// ==================== ROUTES ====================
+// ================= ROUTES =================
 app.get("/", (req, res) => {
-  res.send("✅ Backend is running!");
+  res.send("✅ Backend working!");
 });
 
 app.get("/api/users-status", async (req, res) => {
@@ -104,11 +74,11 @@ app.get("/api/users-status", async (req, res) => {
 app.use("/api/users", userRouter);
 app.use("/api/messages", messageRouter);
 
-// ==================== DATABASE ====================
+// ================= DATABASE =================
 await connectDB();
 
-// ==================== SERVER ====================
+// ================= SERVER =================
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
