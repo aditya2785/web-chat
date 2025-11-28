@@ -102,7 +102,7 @@ export const AuthProvider = ({ children }) => {
 
     // IMPORTANT FIX — backend requires query.userId, not token
     const newSocket = io(backendUrl, {
-      query: {
+      auth: {
         userId: user._id,  // <-- FIXED
       },
       transports: ["websocket"],

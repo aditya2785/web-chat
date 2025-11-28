@@ -60,7 +60,10 @@ const broadcastOnlineUsers = () => {
 
 io.on("connection", (socket) => {
   // Accept userId through query param for simplicity (you may switch to token auth)
-  const userId = socket.handshake.query.userId || null;
+  const userId =
+  socket.handshake.auth?.userId ||
+  socket.handshake.query?.userId ||
+  null;
 
   if (userId) {
     addUserSocket(userId, socket.id);
