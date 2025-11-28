@@ -12,7 +12,7 @@ export const ChatProvider = ({ children }) => {
   const [unseenMessages, setUnseenMessages] = useState({});
   const [typingUsers, setTypingUsers] = useState({});
 
-  // ✅ NEW — WhatsApp-style mobile navigation
+  // ✅ NEW — WhatsApp mobile navigation
   const [mobileView, setMobileView] = useState("sidebar");
   // "sidebar" | "chat" | "profile"
 
