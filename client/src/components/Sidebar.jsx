@@ -13,6 +13,8 @@ const Sidebar = () => {
     setSelectedUser,
     unseenMessages,
     setUnseenMessages,
+    mobileView,
+    setMobileView,
   } = useContext(ChatContext);
 
   const { authUser, logout, onlineUsers, axios } = useContext(AuthContext);
@@ -21,12 +23,14 @@ const Sidebar = () => {
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
+  // Load users
   useEffect(() => {
     if (authUser?._id) {
       getUsers();
     }
   }, [authUser, onlineUsers]);
 
+  // Close menu if clicked outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -37,6 +41,7 @@ const Sidebar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Delete user
   const deleteUser = async (userId, fullName) => {
     if (!window.confirm(`Delete ${fullName}? This cannot be undone.`)) return;
 
@@ -53,14 +58,19 @@ const Sidebar = () => {
     }
   };
 
+  // Search filter
   const filteredUsers = input
     ? users.filter((user) =>
         user.fullName.toLowerCase().includes(input.toLowerCase())
       )
     : users;
 
+  // ✅ HIDE sidebar when chat is open on mobile
+  const sidebarHidden =
+    mobileView !== "sidebar" ? "hidden md:flex" : "flex";
+
   return (
-    <div className="h-full bg-[#1e293b] text-white flex flex-col">
+    <div className={`${sidebarHidden} h-full bg-[#1e293b] text-white flex-col w-full md:w-auto`}>
 
       {/* HEADER */}
       <div className="p-4 border-b border-gray-700 flex items-center justify-between">
@@ -132,7 +142,10 @@ const Sidebar = () => {
             <div
               onClick={() => {
                 setSelectedUser(user);
-                setUnseenMessages(prev => ({ ...prev, [user._id]: 0 }));
+                setUnseenMessages((prev) => ({ ...prev, [user._id]: 0 }));
+
+                // ✅ Go to chat screen on mobile
+                setMobileView("chat");
               }}
               className="flex items-center gap-3 flex-1 cursor-pointer"
             >
@@ -143,17 +156,11 @@ const Sidebar = () => {
               <div>
                 <p className="font-medium">{user.fullName}</p>
 
-                {/* ✅ ONLINE COLOR FIX HERE ✅ */}
                 {onlineUsers?.includes(user._id) ? (
-                  <span className="text-xs text-green-500 font-semibold">
-                    ● Online
-                  </span>
+                  <span className="text-xs text-green-500 font-semibold">● Online</span>
                 ) : (
-                  <span className="text-xs text-gray-400">
-                    Offline
-                  </span>
+                  <span className="text-xs text-gray-400">Offline</span>
                 )}
-
               </div>
             </div>
 
