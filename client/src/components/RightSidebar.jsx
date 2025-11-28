@@ -11,14 +11,11 @@ const RightSidebar = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (messages && messages.length > 0) {
-      const images = messages
-        .filter((msg) => msg.image && typeof msg.image === "string")
-        .map((msg) => msg.image);
-      setMsgImages(images);
-    } else {
-      setMsgImages([]);
-    }
+    if (!messages) return;
+    const imgs = messages
+      .filter((msg) => msg.image)
+      .map((msg) => msg.image);
+    setMsgImages(imgs);
   }, [messages]);
 
   if (!selectedUser) return null;
@@ -26,45 +23,33 @@ const RightSidebar = () => {
   const isOwnProfile = selectedUser._id === authUser?._id;
 
   return (
-    <div className="
-      h-full w-full bg-[#0f172a] text-white flex flex-col justify-between 
-      p-4 md:p-6 overflow-y-auto md:overflow-y-visible
-    ">
+    <div
+      className="
+        h-full w-full bg-[#111b21] text-white 
+        flex flex-col overflow-y-auto
+      "
+    >
 
-      {/* PROFILE HEADER */}
-      <div className="flex flex-col items-center gap-3 text-center">
+      {/* HEADER */}
+      <div className="px-6 py-5 bg-[#202c33] border-b border-black/20">
+        <h2 className="text-lg font-semibold">Contact Info</h2>
+      </div>
 
-        <div className="relative group">
-          <img
-            src={selectedUser?.profilePic || assets.avatar_icon}
-            alt="profile"
-            className="
-              rounded-full object-cover border-4 border-violet-600 shadow-lg
-              w-24 h-24 md:w-32 md:h-32
-            "
-          />
+      {/* PROFILE SECTION */}
+      <div className="flex flex-col items-center p-6 border-b border-black/20">
+        <img
+          src={selectedUser?.profilePic || assets.avatar_icon}
+          className="w-32 h-32 rounded-full object-cover border-4 border-[#00a884] shadow-lg"
+        />
 
-          {isOwnProfile && (
-            <button
-              onClick={() => navigate("/profile")}
-              className="
-                absolute bottom-2 right-2 bg-violet-600 p-2 rounded-full text-xs 
-                shadow-md hover:bg-violet-700 transition
-              "
-            >
-              ✏️
-            </button>
-          )}
-        </div>
-
-        <h1 className="text-xl md:text-2xl font-semibold flex items-center gap-2">
+        <h1 className="text-xl font-semibold mt-4 flex items-center gap-2">
           {selectedUser.fullName}
           {onlineUsers?.includes(selectedUser._id) && (
             <span className="w-3 h-3 rounded-full bg-green-500"></span>
           )}
         </h1>
 
-        <p className="text-xs md:text-sm text-gray-400 max-w-[260px]">
+        <p className="text-gray-400 text-sm mt-1">
           {selectedUser.bio || "No bio available"}
         </p>
 
@@ -72,8 +57,8 @@ const RightSidebar = () => {
           <button
             onClick={() => navigate("/profile")}
             className="
-              mt-2 text-xs md:text-sm px-4 py-1 rounded-full 
-              bg-violet-600 hover:bg-violet-700 transition
+              mt-4 px-5 py-2 bg-[#00a884] rounded-full text-white 
+              hover:bg-[#029973] transition
             "
           >
             Edit Profile
@@ -81,44 +66,49 @@ const RightSidebar = () => {
         )}
       </div>
 
-      {/* MEDIA GALLERY */}
-      <div className="mt-6 flex-1 w-full">
-        <p className="text-sm font-semibold mb-3">Shared Media</p>
-
-        <div className="
-          grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto 
-          max-h-[240px] md:max-h-[260px] pr-1
-        ">
-          {msgImages.length > 0 ? (
-            msgImages.map((url, index) => (
-              <div
-                key={index}
-                onClick={() => window.open(url, "_blank")}
-                className="cursor-pointer rounded-xl overflow-hidden hover:scale-105 transition"
-              >
-                <img
-                  src={url}
-                  className="w-full h-24 sm:h-28 object-cover"
-                  alt="media"
-                />
-              </div>
-            ))
-          ) : (
-            <p className="text-xs text-gray-500 col-span-2 text-center">
-              No media shared yet
-            </p>
-          )}
-        </div>
+      {/* ABOUT */}
+      <div className="px-6 py-5 border-b border-black/20">
+        <p className="text-gray-400 text-xs uppercase tracking-wide">About</p>
+        <p className="mt-2 text-sm">{selectedUser.bio || "No about info"}</p>
       </div>
 
-      {/* ACTION BUTTONS */}
-      <div className="flex flex-col gap-3 mt-6">
+      {/* MEDIA SECTION */}
+      <div className="px-6 py-5 border-b border-black/20">
+        <p className="text-gray-400 text-xs uppercase tracking-wide mb-3">
+          Media, Links & Docs
+        </p>
+
+        {msgImages.length === 0 ? (
+          <p className="text-sm text-gray-500">No media shared yet</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            {msgImages.slice(0, 12).map((url, idx) => (
+              <div
+                key={idx}
+                className="rounded-lg overflow-hidden cursor-pointer hover:scale-105 transition border border-black/20"
+                onClick={() => window.open(url, "_blank")}
+              >
+                <img src={url} className="w-full h-24 object-cover" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {msgImages.length > 12 && (
+          <p className="text-xs text-gray-400 mt-2">
+            +{msgImages.length - 12} more
+          </p>
+        )}
+      </div>
+
+      {/* ACTIONS */}
+      <div className="px-6 py-5 flex flex-col gap-3">
         {isOwnProfile && (
           <button
             onClick={() => navigate("/profile")}
             className="
-              bg-[#1e293b] border border-violet-500 text-violet-400 
-              py-2 rounded-full hover:bg-violet-600 hover:text-white transition
+              bg-[#202c33] py-3 rounded-lg text-center 
+              hover:bg-[#2a3942] transition text-sm
             "
           >
             Update Profile
@@ -127,7 +117,10 @@ const RightSidebar = () => {
 
         <button
           onClick={logout}
-          className="bg-red-600 py-2 rounded-full hover:bg-red-700 transition"
+          className="
+            bg-red-600 py-3 rounded-lg text-center 
+            hover:bg-red-700 transition text-sm
+          "
         >
           Log Out
         </button>
