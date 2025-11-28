@@ -29,6 +29,7 @@ const ChatContainer = () => {
 
   const isTyping = typingUsers?.[selectedUser?._id];
 
+  // ============= AUTO SCROLL =============
   const handleScroll = () => {
     const el = chatBodyRef.current;
     if (!el) return;
@@ -46,6 +47,7 @@ const ChatContainer = () => {
     if (selectedUser) getMessages(selectedUser._id);
   }, [selectedUser]);
 
+  // =========== SEND MESSAGE ===========
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -58,60 +60,41 @@ const ChatContainer = () => {
     emitTyping();
   };
 
-  // 🔥 FIXED IMAGE UPLOAD WITH COMPRESSION
-  const compressImage = (file) =>
-    new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target.result;
-
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const maxSize = 900;
-
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > maxSize) {
-              height *= maxSize / width;
-              width = maxSize;
-            }
-          } else {
-            if (height > maxSize) {
-              width *= maxSize / height;
-              height = maxSize;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-
-          const compressedData = canvas.toDataURL("image/jpeg", 0.7);
-          resolve(compressedData);
-        };
-      };
-    });
-
+  // =========== SAFE MOBILE IMAGE HANDLER (NO FAILURES) ===========
   const handleSendImage = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Image too large. Max 10MB.");
+    const file = e.target.files?.[0];
+    if (!file) {
+      toast.error("Image not selected");
       return;
     }
 
-    const compressed = await compressImage(file);
-    await sendMessage({ image: compressed });
+    if (!file.type.startsWith("image/")) {
+      toast.error("Invalid file type");
+      return;
+    }
+
+    try {
+      const reader = new FileReader();
+
+      reader.onload = async () => {
+        if (!reader.result) {
+          toast.error("Failed to load image");
+          return;
+        }
+        await sendMessage({ image: reader.result });
+      };
+
+      reader.onerror = () => {
+        toast.error("Image load failed (mobile error)");
+      };
+
+      reader.readAsDataURL(file);
+    } catch (err) {
+      toast.error("Error sending image");
+    }
   };
 
+  // =========== SEND FILE ===========
   const handleSendFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -130,6 +113,7 @@ const ChatContainer = () => {
     reader.readAsDataURL(file);
   };
 
+  // =========== AUDIO RECORD ===========
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -156,7 +140,7 @@ const ChatContainer = () => {
 
       mediaRecorder.current.start();
     } catch {
-      toast.error("Microphone permission denied");
+      toast.error("Microphone not allowed");
     }
   };
 
@@ -166,6 +150,7 @@ const ChatContainer = () => {
     }
   };
 
+  // =========== IF NO CHAT SELECTED ===========
   if (!selectedUser) {
     return (
       <div className="flex items-center justify-center h-full text-gray-400 bg-[#0f172a]">
@@ -177,12 +162,8 @@ const ChatContainer = () => {
   return (
     <div className="flex flex-col w-full h-full bg-[#0f172a] overflow-hidden">
 
-      {/* FIXED HEADER */}
-      <div className="
-        flex items-center gap-3 px-4 py-3 
-        bg-[#1e293b] border-b border-gray-700 
-        flex-none
-      ">
+      {/* HEADER */}
+      <div className="flex items-center gap-3 px-4 py-3 bg-[#1e293b] border-b border-gray-700">
         <img
           src={selectedUser.profilePic || assets.avatar_icon}
           className="w-9 h-9 md:w-10 md:h-10 rounded-full"
@@ -192,12 +173,11 @@ const ChatContainer = () => {
           <h2 className="text-white text-sm md:text-base font-medium">
             {selectedUser.fullName}
           </h2>
-
           <p className="text-[10px] md:text-xs">
             {isTyping ? (
               <span className="text-blue-400">Typing...</span>
             ) : onlineUsers.includes(selectedUser._id) ? (
-              <span className="text-green-500 font-semibold">● Online</span>
+              <span className="text-green-500">● Online</span>
             ) : (
               <span className="text-gray-400">Offline</span>
             )}
@@ -205,15 +185,11 @@ const ChatContainer = () => {
         </div>
       </div>
 
-      {/* CHAT LIST */}
+      {/* CHAT BODY */}
       <div
         ref={chatBodyRef}
         onScroll={handleScroll}
-        className="
-          flex-1 overflow-y-auto 
-          px-3 md:px-5 py-4 space-y-4
-          scrollbar-thin scrollbar-thumb-gray-600
-        "
+        className="flex-1 overflow-y-auto px-3 md:px-5 py-4 space-y-4"
       >
         {messages.map((msg) => {
           const isMe = msg.senderId === authUser._id;
@@ -259,14 +235,10 @@ const ChatContainer = () => {
         <div ref={scrollEndRef}></div>
       </div>
 
-      {/* INPUT */}
+      {/* INPUT SECTION */}
       <form
         onSubmit={handleSendMessage}
-        className="
-          flex items-center gap-3 p-3 md:p-4 
-          bg-[#1e293b] border-t border-gray-700 
-          flex-none
-        "
+        className="flex items-center gap-3 p-3 md:p-4 bg-[#1e293b] border-t border-gray-700"
       >
         <input
           value={input}
@@ -275,11 +247,11 @@ const ChatContainer = () => {
           className="flex-1 bg-gray-800 p-3 rounded-full text-white outline-none"
         />
 
-        {/* 🔥 FIXED INPUT FOR MOBILE CAMERA */}
+        {/* FIXED MOBILE SAFE UPLOAD */}
         <input
           type="file"
-          hidden
           id="imgUpload"
+          hidden
           accept="image/*"
           capture="environment"
           onChange={handleSendImage}
@@ -291,7 +263,7 @@ const ChatContainer = () => {
         <input type="file" hidden id="fileUpload" onChange={handleSendFile} />
         <label htmlFor="fileUpload" className="text-white text-xl cursor-pointer">📎</label>
 
-        {!input.trim() && (
+        {!input.trim() ? (
           <button
             type="button"
             onMouseDown={startRecording}
@@ -300,9 +272,7 @@ const ChatContainer = () => {
           >
             🎤
           </button>
-        )}
-
-        {input.trim() && (
+        ) : (
           <button type="submit" className="text-green-400 text-2xl">➤</button>
         )}
       </form>
