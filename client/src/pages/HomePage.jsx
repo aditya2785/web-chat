@@ -3,9 +3,11 @@ import { ChatContext } from "../../context/ChatContext";
 import Sidebar from "../components/Sidebar";
 import ChatContainer from "../components/ChatContainer";
 import RightSidebar from "../components/RightSidebar";
+import { useNavigate } from "react-router-dom";
 
 const HomePage = () => {
   const { selectedUser, setSelectedUser, setMobileView } = useContext(ChatContext);
+  const navigate = useNavigate();
 
   return (
     <div className="w-screen h-screen bg-[#0f172a] overflow-hidden">
@@ -55,8 +57,9 @@ const HomePage = () => {
               {/* FIXED BACK BUTTON */}
               <button
                 onClick={() => {
-                  setSelectedUser(null);       // return to user list
-                  setMobileView("sidebar");    // important for mobile view handling
+                  setSelectedUser(null);       // Reset user
+                  setMobileView("sidebar");    // Fix the blank page
+                  navigate("/");               // Go back to homepage
                 }}
                 className="text-white text-2xl"
               >
