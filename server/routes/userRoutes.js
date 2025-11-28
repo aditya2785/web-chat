@@ -6,46 +6,42 @@ import {
   updateProfile,
 } from "../controllers/userController.js";
 import { protectRoute } from "../middleware/auth.js";
-import User from "../models/User.js"; // ✅ fixed import (file is User.js, not userModel.js)
+import { verifyAdmin } from "../middleware/adminMiddleware.js";
+import User from "../models/User.js";
 
 const userRouter = express.Router();
 
+// ================= AUTH ROUTES =================
 userRouter.post("/signup", signup);
 userRouter.post("/login", login);
 userRouter.put("/update-profile", protectRoute, updateProfile);
 userRouter.get("/check", protectRoute, checkAuth);
 
-// ✅ New route: get all users except logged-in one
+// ================= GET ALL USERS =================
 userRouter.get("/users", protectRoute, async (req, res) => {
   try {
-    const users = await User.find({ _id: { $ne: req.user._id } }).select(
-      "-password"
-    );
+    const users = await User.find({ _id: { $ne: req.user._id } }).select("-password");
 
     res.json({
       success: true,
       users,
-      unseenMessages: {}, // you can later replace this with real unseen message count
+      unseenMessages: {},
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // ================= ADMIN DELETE USER =================
-userRouter.delete("/delete/:id", protectRoute, async (req, res) => {
+userRouter.delete("/delete/:id", protectRoute, verifyAdmin, async (req, res) => {
   try {
-    if (!req.user.isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Admin only."
-      });
-    }
-
     const userToDelete = await User.findById(req.params.id);
 
     if (!userToDelete) {
-      return res.json({ success: false, message: "User not found" });
+      return res.json({
+        success: false,
+        message: "User not found"
+      });
     }
 
     // Prevent admin deleting himself
@@ -67,6 +63,5 @@ userRouter.delete("/delete/:id", protectRoute, async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
 
 export default userRouter;

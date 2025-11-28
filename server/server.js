@@ -72,7 +72,8 @@ app.use(cors({
 }));
 
 // ✅ HANDLE PREFLIGHT CORRECTLY
-app.options("*", cors());
+app.options(/.*/, cors());
+
 
 // ================= ROUTES =================
 app.get("/", (req, res) => {

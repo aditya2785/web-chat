@@ -35,6 +35,8 @@ export const protectRoute = async (req, res, next) => {
       });
     }
 
+    console.log("✅ USER AUTH:", user.email, "ADMIN:", user.isAdmin);
+
     req.user = user;
     next();
 
