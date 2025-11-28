@@ -15,7 +15,7 @@ const Sidebar = () => {
     setUnseenMessages,
     mobileView,
     setMobileView,
-    typingUsers, // new from context
+    typingUsers,
   } = useContext(ChatContext);
 
   const { authUser, logout, onlineUsers } = useContext(AuthContext);
@@ -25,10 +25,10 @@ const Sidebar = () => {
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
-  // Load users
+  // FIX: Now sidebar updates instantly when typing changes
   useEffect(() => {
     if (authUser?._id) getUsers();
-  }, [authUser, onlineUsers]);
+  }, [authUser, onlineUsers, typingUsers]); // ← fixed
 
   // Close dropdown
   useEffect(() => {
@@ -47,7 +47,6 @@ const Sidebar = () => {
       )
     : users;
 
-  // Mobile → hide sidebar when chat is open
   const sidebarVisible = mobileView === "sidebar" ? "flex" : "hidden md:flex";
 
   return (
@@ -124,8 +123,6 @@ const Sidebar = () => {
               onClick={() => {
                 setSelectedUser(user);
                 setUnseenMessages((prev) => ({ ...prev, [user._id]: 0 }));
-
-                // Mobile → open chat
                 setMobileView("chat");
               }}
             >
@@ -152,7 +149,6 @@ const Sidebar = () => {
                 </p>
               </div>
 
-              {/* Unseen badge */}
               {unseenMessages[user._id] > 0 && (
                 <div className="bg-green-600 text-white rounded-full text-xs px-2 py-1">
                   {unseenMessages[user._id]}
