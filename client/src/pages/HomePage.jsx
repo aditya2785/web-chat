@@ -12,7 +12,7 @@ const HomePage = () => {
   return (
     <div className="w-screen h-screen bg-[#0f172a] overflow-hidden">
 
-      {/* DESKTOP VIEW (>=768px) */}
+      {/* DESKTOP VIEW */}
       <div
         className="
           hidden md:grid
@@ -26,7 +26,7 @@ const HomePage = () => {
           <Sidebar />
         </div>
 
-        <div className="h-full overflow-hidden">
+        <div className="h-full overflow-hidden flex flex-col">
           <ChatContainer />
         </div>
 
@@ -37,7 +37,7 @@ const HomePage = () => {
         )}
       </div>
 
-      {/* MOBILE VIEW (<768px) */}
+      {/* MOBILE VIEW */}
       <div className="md:hidden w-full h-full relative overflow-hidden">
 
         {/* SIDEBAR FULLSCREEN */}
@@ -49,17 +49,16 @@ const HomePage = () => {
 
         {/* CHAT FULLSCREEN */}
         {selectedUser && (
-          <div className="absolute inset-0 bg-[#0f172a] overflow-hidden">
+          <div className="absolute inset-0 bg-[#0f172a] flex flex-col overflow-hidden">
 
             {/* MOBILE TOP BAR */}
             <div className="flex items-center gap-4 px-4 py-3 bg-[#1e293b] border-b border-gray-700">
 
-              {/* FIXED BACK BUTTON */}
               <button
                 onClick={() => {
-                  setSelectedUser(null);       // Reset user
-                  setMobileView("sidebar");    // Fix the blank page
-                  navigate("/");               // Go back to homepage
+                  setSelectedUser(null);
+                  setMobileView("sidebar");
+                  navigate("/");
                 }}
                 className="text-white text-2xl"
               >
@@ -79,8 +78,8 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* CHAT BODY */}
-            <div className="h-[calc(100vh-56px)] overflow-hidden">
+            {/* CHAT CONTAINER (fills whole height) */}
+            <div className="flex-1 flex flex-col overflow-hidden">
               <ChatContainer />
             </div>
 

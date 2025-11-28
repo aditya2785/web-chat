@@ -28,10 +28,14 @@ const ChatContainer = () => {
 
   const isTyping = typingUsers?.[selectedUser?._id];
 
+  useEffect(() => {
+    if (selectedUser) getMessages(selectedUser._id);
+  }, [selectedUser]);
+
   const handleScroll = () => {
     const el = chatBodyRef.current;
     if (!el) return;
-    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
     setAutoScroll(isAtBottom);
   };
 
@@ -39,11 +43,7 @@ const ChatContainer = () => {
     if (autoScroll) {
       scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, autoScroll]);
-
-  useEffect(() => {
-    if (selectedUser) getMessages(selectedUser._id);
-  }, [selectedUser]);
+  }, [messages]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -60,6 +60,7 @@ const ChatContainer = () => {
   const handleSendImage = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onloadend = async () => {
       await sendMessage({ image: reader.result });
@@ -70,6 +71,7 @@ const ChatContainer = () => {
   const handleSendFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onloadend = async () => {
       await sendMessage({
@@ -87,6 +89,7 @@ const ChatContainer = () => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
       mediaRecorder.current = new MediaRecorder(stream, { mimeType: "audio/webm" });
       audioChunks.current = [];
 
@@ -96,6 +99,7 @@ const ChatContainer = () => {
 
       mediaRecorder.current.onstop = async () => {
         const audioBlob = new Blob(audioChunks.current, { type: "audio/webm" });
+
         const reader = new FileReader();
         reader.onloadend = async () => {
           await sendMessage({ audio: reader.result });
@@ -117,31 +121,32 @@ const ChatContainer = () => {
 
   if (!selectedUser) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-400 bg-[#0f172a] text-sm md:text-base">
+      <div className="flex items-center justify-center h-full text-gray-400 bg-[#0f172a]">
         Select a chat to start messaging
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#0f172a]">
+    <div className="flex flex-col w-full h-full bg-[#0f172a] overflow-hidden">
 
       {/* HEADER */}
-      <div className="flex items-center gap-3 md:gap-4 px-4 md:px-5 py-3 md:py-4 border-b border-gray-700">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-700 bg-[#1e293b]">
         <img
           src={selectedUser.profilePic || assets.avatar_icon}
           className="w-9 h-9 md:w-10 md:h-10 rounded-full"
         />
+
         <div>
           <h2 className="text-white text-sm md:text-base font-medium">
             {selectedUser.fullName}
           </h2>
 
-          <p className="text-[10px] md:text-xs">
+          <p className="text-[11px] md:text-xs">
             {isTyping ? (
-              <span className="text-blue-400 font-medium">Typing...</span>
+              <span className="text-blue-400">Typing...</span>
             ) : onlineUsers.includes(selectedUser._id) ? (
-              <span className="text-green-500 font-semibold">● Online</span>
+              <span className="text-green-500">Online</span>
             ) : (
               <span className="text-gray-400">Offline</span>
             )}
@@ -153,7 +158,10 @@ const ChatContainer = () => {
       <div
         ref={chatBodyRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-3 md:p-5 space-y-4 pb-20"
+        className="
+          flex-1 overflow-y-auto px-3 md:px-5 py-4 space-y-4
+          scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent
+        "
       >
         {messages.map((msg) => {
           const isMe = msg.senderId === authUser._id;
@@ -161,11 +169,12 @@ const ChatContainer = () => {
           return (
             <div key={msg._id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
               <div
-                className={`px-3 md:px-4 py-2 md:py-3 rounded-xl text-xs md:text-sm max-w-[85%] md:max-w-[70%] ${
-                  isMe ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-100"
-                }`}
+                className={`
+                  px-3 py-2 md:px-4 md:py-3 rounded-xl text-xs md:text-sm max-w-[80%]
+                  ${isMe ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-100"}
+                `}
               >
-                {msg.text && <p className="leading-relaxed">{msg.text}</p>}
+                {msg.text && <p>{msg.text}</p>}
 
                 {msg.image && (
                   <img
@@ -193,7 +202,7 @@ const ChatContainer = () => {
                   </a>
                 )}
 
-                <div className="text-[9px] md:text-[10px] text-gray-300 mt-1 flex justify-end">
+                <div className="text-[9px] text-gray-300 mt-1 flex justify-end">
                   {formatMessageTime(msg.createdAt)}
                   {isMe && (msg.seen ? " ✔✔" : " ✔")}
                 </div>
@@ -202,50 +211,50 @@ const ChatContainer = () => {
           );
         })}
 
-        <div ref={scrollEndRef}></div>
+        <div ref={scrollEndRef} />
       </div>
 
       {/* INPUT BAR */}
       <form
         onSubmit={handleSendMessage}
-        className="flex items-center gap-2 md:gap-3 p-3 md:p-4 border-t border-gray-700 bg-[#0f172a]"
+        className="flex items-center gap-3 p-3 md:p-4 bg-[#1e293b] border-t border-gray-700"
       >
         <input
           value={input}
           onChange={handleTyping}
-          placeholder="Type message..."
+          placeholder="Type a message"
           className="flex-1 bg-gray-800 p-2 md:p-3 rounded-full text-white outline-none text-sm"
         />
 
         <input type="file" hidden id="imgUpload" accept="image/*" onChange={handleSendImage} />
         <label htmlFor="imgUpload">
-          <img src={assets.gallery_icon} className="w-5 md:w-6 cursor-pointer" />
+          <img src={assets.gallery_icon} className="w-6 cursor-pointer" />
         </label>
 
         <input type="file" hidden id="fileUpload" onChange={handleSendFile} />
-        <label htmlFor="fileUpload" className="text-white text-lg cursor-pointer">📎</label>
+        <label htmlFor="fileUpload" className="text-white text-xl cursor-pointer">📎</label>
 
         <button
           type="button"
           onMouseDown={startRecording}
           onMouseUp={stopRecording}
-          className="text-white text-lg"
+          className="text-white text-xl"
         >
           🎤
         </button>
 
         <button type="submit">
-          <img src={assets.send_button} className="w-7 md:w-8" />
+          <img src={assets.send_button} className="w-8" />
         </button>
       </form>
 
-      {/* FULL IMAGE PREVIEW */}
+      {/* IMAGE PREVIEW */}
       {previewImage && (
         <div
           onClick={() => setPreviewImage(null)}
-          className="fixed inset-0 bg-black/80 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
         >
-          <img src={previewImage} className="max-h-[90%] rounded-xl w-auto" />
+          <img src={previewImage} className="max-h-[90%] rounded-xl" />
         </div>
       )}
     </div>
