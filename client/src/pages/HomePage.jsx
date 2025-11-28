@@ -3,9 +3,11 @@ import { ChatContext } from "../../context/ChatContext";
 import Sidebar from "../components/Sidebar";
 import ChatContainer from "../components/ChatContainer";
 import RightSidebar from "../components/RightSidebar";
+import { useNavigate } from "react-router-dom";
 
 const HomePage = () => {
-  const { selectedUser, setSelectedUser } = useContext(ChatContext);
+  const { selectedUser, setSelectedUser, setMobileView } = useContext(ChatContext);
+  const navigate = useNavigate();
 
   return (
     <div className="w-screen h-screen bg-[#0f172a] overflow-hidden">
@@ -51,8 +53,14 @@ const HomePage = () => {
 
             {/* MOBILE TOP BAR */}
             <div className="flex items-center gap-4 px-4 py-3 bg-[#1e293b] border-b border-gray-700">
+
+              {/* FIXED BACK BUTTON */}
               <button
-                onClick={() => setSelectedUser(null)}
+                onClick={() => {
+                  setSelectedUser(null);       // Reset user
+                  setMobileView("sidebar");    // Fix the blank page
+                  navigate("/");               // Go back to homepage
+                }}
                 className="text-white text-2xl"
               >
                 ←
@@ -71,10 +79,11 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* CHAT BODY (This scrolls internally — WhatsApp style) */}
+            {/* CHAT BODY */}
             <div className="h-[calc(100vh-56px)] overflow-hidden">
               <ChatContainer />
             </div>
+
           </div>
         )}
       </div>
