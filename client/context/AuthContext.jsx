@@ -14,18 +14,18 @@ export const AuthProvider = ({ children }) => {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [socket, setSocket] = useState(null);
 
-  /** ================================
-   *   ALWAYS ATTACH JWT TO EVERY API
-   *  ================================ */
+  /* ================================
+     ALWAYS ATTACH JWT TO EVERY API
+  ================================== */
   axios.interceptors.request.use((config) => {
     const jwt = localStorage.getItem("token");
     if (jwt) config.headers.Authorization = `Bearer ${jwt}`;
     return config;
   });
 
-  /** ======================
-   *   CHECK AUTH STATUS
-   *  ====================== */
+  /* ======================
+       CHECK AUTH STATUS
+  ========================= */
   const checkAuth = async () => {
     try {
       const { data } = await axios.get("/api/users/check");
@@ -39,9 +39,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /** ======================
-   *         LOGIN
-   *  ====================== */
+  /* ======================
+            LOGIN
+  ========================= */
   const login = async (state, creds) => {
     try {
       const { data } = await axios.post(`/api/users/${state}`, creds);
@@ -58,9 +58,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /** ======================
-   *         LOGOUT
-   *  ====================== */
+  /* ======================
+            LOGOUT
+  ========================= */
   const logout = () => {
     localStorage.removeItem("token");
     setToken(null);
@@ -75,9 +75,9 @@ export const AuthProvider = ({ children }) => {
     toast.success("Logged out");
   };
 
-  /** ======================
-   *     UPDATE PROFILE
-   *  ====================== */
+  /* ======================
+        UPDATE PROFILE
+  ========================= */
   const updateProfile = async (body) => {
     try {
       const { data } = await axios.put("/api/users/update-profile", body);
@@ -91,18 +91,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /** ===============================================
-   *             SOCKET CONNECTION (WhatsApp-style)
-   *  =============================================== */
+  /* ================================================
+       SOCKET CONNECTION — FIXED FOR YOUR BACKEND
+  ================================================= */
   const connectSocket = (user) => {
     if (!user) return;
 
     // Prevent duplicate connections
     if (socket?.connected) return;
 
+    // IMPORTANT FIX — backend requires query.userId, not token
     const newSocket = io(backendUrl, {
-      auth: { token: localStorage.getItem("token") }, // SECURE WAY
-      transports: ["websocket"], // reliable
+      query: {
+        userId: user._id,  // <-- FIXED
+      },
+      transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 500,
@@ -110,12 +113,11 @@ export const AuthProvider = ({ children }) => {
 
     setSocket(newSocket);
 
-    // ONLINE USERS UPDATE
+    // Listener for online users
     newSocket.on("getOnlineUsers", (userIds) => {
       setOnlineUsers(userIds);
     });
 
-    // AUTO-RECONNECT HANDLER
     newSocket.on("connect_error", (err) => {
       console.warn("Socket connect error:", err.message);
     });
@@ -125,9 +127,9 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  /** ======================
-   *   ON LOAD CHECK AUTH
-   *  ====================== */
+  /* ======================
+        ON LOAD CHECK AUTH
+  ========================= */
   useEffect(() => {
     if (token) checkAuth();
   }, [token]);

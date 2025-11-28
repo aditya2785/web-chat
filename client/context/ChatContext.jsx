@@ -16,6 +16,7 @@ export const ChatProvider = ({ children }) => {
   // MOBILE NAV: "sidebar" | "chat" | "profile"
   const [mobileView, setMobileView] = useState("sidebar");
 
+  // from AuthContext
   const { socket, axios, authUser, onlineUsers } = useContext(AuthContext);
 
   // keep latest selectedUser id in a ref for socket handlers
@@ -43,8 +44,7 @@ export const ChatProvider = ({ children }) => {
       if (data.success) {
         setUsers(data.users || []);
         setUnseenMessages(data.unseenMessages || {});
-
-        // Ensure mobile shows sidebar after loading users (fix blank screens)
+        // ensure mobile shows sidebar after loading users
         setMobileView("sidebar");
       } else {
         toast.error(data.message || "Failed to fetch users");
@@ -80,7 +80,8 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // ================= SEND MESSAGE =================
+  // ================= SEND MESSAGE (REST) =================
+  // you persist via REST so backend controller will emit to sockets
   const sendMessage = async (payload) => {
     try {
       if (!selectedUser?._id) return;
@@ -91,8 +92,9 @@ export const ChatProvider = ({ children }) => {
       );
 
       if (data.success) {
+        // append new message locally (optimistic)
         setMessages((prev) => [...prev, data.newMessage]);
-        setAutoScroll(true); // ensure scroll down after sending message
+        setAutoScroll(true);
       } else {
         toast.error(data.message || "Message send failed");
       }
@@ -114,49 +116,49 @@ export const ChatProvider = ({ children }) => {
 
   // ================= SOCKET LISTENERS =================
   useEffect(() => {
+    // require both socket and authUser
     if (!socket || !authUser) return;
 
-    // NEW MESSAGE
+    // define handlers so we can remove them reliably
     const handleNewMessage = async (message) => {
-      const openChatId = selectedUserIdRef.current;
+      try {
+        const openChatId = selectedUserIdRef.current;
 
-      if (openChatId && message.senderId === openChatId) {
-        // message belongs to currently open chat
-        setMessages((prev) => [...prev, message]);
+        if (openChatId && message.senderId === openChatId) {
+          // message belongs to currently open chat
+          setMessages((prev) => [...prev, message]);
 
-        // mark seen on server
-        try {
-          await axios.put(`/api/messages/mark/${message._id}`);
-        } catch (e) {
-          console.error("Mark seen failed", e);
+          // mark seen on server (best-effort)
+          axios.put(`/api/messages/mark/${message._id}`).catch((e) => {
+            console.error("Mark seen failed", e);
+          });
+
+          // ensure autoscroll to bottom
+          setAutoScroll(true);
+        } else {
+          // increment unseen count
+          setUnseenMessages((prev) => ({
+            ...prev,
+            [message.senderId]: (prev[message.senderId] || 0) + 1,
+          }));
         }
-
-        // auto-scroll only if user is at bottom (ChatContainer should manage autoScroll state)
-        setAutoScroll(true);
-      } else {
-        // increment unseen count
-        setUnseenMessages((prev) => ({
-          ...prev,
-          [message.senderId]: (prev[message.senderId] || 0) + 1,
-        }));
+      } catch (err) {
+        console.error("handleNewMessage error:", err);
       }
     };
 
-    // DELIVERED
     const handleDelivered = (id) => {
       setMessages((prev) =>
         prev.map((msg) => (msg._id === id ? { ...msg, delivered: true } : msg))
       );
     };
 
-    // SEEN
     const handleSeenUpdate = (id) => {
       setMessages((prev) =>
         prev.map((msg) => (msg._id === id ? { ...msg, seen: true } : msg))
       );
     };
 
-    // TYPING
     const handleTyping = ({ senderId }) => {
       setTypingUsers((prev) => ({ ...prev, [senderId]: true }));
 
@@ -166,11 +168,13 @@ export const ChatProvider = ({ children }) => {
       }, 2000);
     };
 
+    // register
     socket.on("newMessage", handleNewMessage);
     socket.on("messageDelivered", handleDelivered);
     socket.on("messageSeenUpdate", handleSeenUpdate);
     socket.on("typing", handleTyping);
 
+    // cleanup
     return () => {
       socket.off("newMessage", handleNewMessage);
       socket.off("messageDelivered", handleDelivered);
@@ -184,6 +188,8 @@ export const ChatProvider = ({ children }) => {
     if (authUser?._id) {
       getUsers();
     }
+    // we purposely do not include getUsers in deps to avoid infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser, onlineUsers]);
 
   return (
