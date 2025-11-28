@@ -24,20 +24,19 @@ export const signup = async (req, res) => {
       fullName,
       email,
       password: hashedPassword,
-      bio
+      bio,
     });
 
     const token = generateToken(newUser);
 
-    // ✅ SAFE USER (remove password but KEEP isAdmin)
     const safeUser = newUser.toObject();
     delete safeUser.password;
 
     res.json({
       success: true,
-      userData: safeUser,
+      user: safeUser, // ✅ FIXED (was userData)
       token,
-      message: "Account created successfully"
+      message: "Account created successfully",
     });
   } catch (error) {
     res.json({ success: false, message: error.message });
@@ -61,15 +60,14 @@ export const login = async (req, res) => {
 
     const token = generateToken(userData);
 
-    // ✅ SAFE USER
     const safeUser = userData.toObject();
     delete safeUser.password;
 
     res.json({
       success: true,
-      userData: safeUser,
+      user: safeUser, // ✅ FIXED (was userData)
       token,
-      message: "Login successful"
+      message: "Login successful",
     });
   } catch (error) {
     res.json({ success: false, message: error.message });
@@ -78,7 +76,17 @@ export const login = async (req, res) => {
 
 // ================= CHECK AUTH =================
 export const checkAuth = (req, res) => {
-  res.json({ success: true, user: req.user }); // already safe via middleware
+  res.json({
+    success: true,
+    user: {
+      _id: req.user._id,
+      fullName: req.user.fullName,
+      email: req.user.email,
+      profilePic: req.user.profilePic,
+      bio: req.user.bio,
+      isAdmin: req.user.isAdmin, // ✅ ENSURED
+    },
+  });
 };
 
 // ================= UPDATE PROFILE =================
