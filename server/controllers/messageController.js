@@ -51,15 +51,13 @@ export const getMessages = async (req, res) => {
       { seen: true }
     );
 
-    // notify sender (selectedUser) that their messages were seen
-    // We find those updated messages and emit seen events to the sender
+    // notify sender (selectedUser)
     const updated = await Message.find({
       senderId: selectedUserId,
       receiverId: myId,
       seen: true,
     }).select("_id senderId");
 
-    // emit seen event per message (you might optimize to a single event)
     const senderSocketIds = getUserSocketIds(selectedUserId);
     updated.forEach((m) => {
       senderSocketIds.forEach((sid) =>
@@ -77,10 +75,13 @@ export const getMessages = async (req, res) => {
 export const markMessageAsSeen = async (req, res) => {
   try {
     const msgId = req.params.id;
-    const message = await Message.findByIdAndUpdate(msgId, { seen: true }, { new: true });
+    const message = await Message.findByIdAndUpdate(
+      msgId,
+      { seen: true },
+      { new: true }
+    );
 
     if (message) {
-      // notify original sender that this message was seen
       const senderSocketIds = getUserSocketIds(message.senderId);
       senderSocketIds.forEach((sid) =>
         io.to(sid).emit("messageSeenUpdate", message._id.toString())
@@ -93,20 +94,20 @@ export const markMessageAsSeen = async (req, res) => {
   }
 };
 
-
 // ================= SEND TEXT / IMAGE =================
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image } = req.body;
+    const { text, image, file, audio } = req.body;
     const senderId = req.user._id;
     const receiverId = req.params.id;
 
     let imageUrl = "";
 
+    // 🔥 FIXED: mobile images require resource_type auto
     if (image) {
       const upload = await cloudinary.uploader.upload(image, {
         folder: "chat-images",
-        resource_type: "image",
+        resource_type: "auto",
       });
       imageUrl = upload.secure_url;
     }
@@ -116,26 +117,26 @@ export const sendMessage = async (req, res) => {
       receiverId,
       text: text || "",
       image: imageUrl || "",
+      file: file || null,
+      audio: audio || "",
     });
 
     // Emit to receiver
     const receiverSocketIds = getUserSocketIds(receiverId);
     receiverSocketIds.forEach((sid) => io.to(sid).emit("newMessage", message));
 
-    // Acknowledge delivery
+    // sender delivery confirm
     const senderSocketIds = getUserSocketIds(senderId);
     senderSocketIds.forEach((sid) =>
       io.to(sid).emit("messageDelivered", message._id.toString())
     );
 
     res.json({ success: true, newMessage: message });
-
   } catch (error) {
     console.error("sendMessage error:", error);
     res.json({ success: false, message: error.message });
   }
 };
-
 
 // ================= SEND VOICE =================
 export const sendVoiceMessage = async (req, res) => {
@@ -143,25 +144,30 @@ export const sendVoiceMessage = async (req, res) => {
     const senderId = req.user._id;
     const receiverId = req.params.id;
 
-    const upload = cloudinary.uploader.upload_stream({ resource_type: "video" }, async (error, result) => {
-      if (error) return res.json({ success: false });
+    const upload = cloudinary.uploader.upload_stream(
+      { resource_type: "video" },
+      async (error, result) => {
+        if (error) return res.json({ success: false });
 
-      const message = await Message.create({
-        senderId,
-        receiverId,
-        audio: result.secure_url,
-      });
+        const message = await Message.create({
+          senderId,
+          receiverId,
+          audio: result.secure_url,
+        });
 
-      // emit to receiver
-      const receiverSocketIds = getUserSocketIds(receiverId);
-      receiverSocketIds.forEach((sid) => io.to(sid).emit("newMessage", message));
+        const receiverSocketIds = getUserSocketIds(receiverId);
+        receiverSocketIds.forEach((sid) =>
+          io.to(sid).emit("newMessage", message)
+        );
 
-      // notify sender that message was delivered (server forwarded)
-      const senderSocketIds = getUserSocketIds(senderId);
-      senderSocketIds.forEach((sid) => io.to(sid).emit("messageDelivered", message._id.toString()));
+        const senderSocketIds = getUserSocketIds(senderId);
+        senderSocketIds.forEach((sid) =>
+          io.to(sid).emit("messageDelivered", message._id.toString())
+        );
 
-      res.json({ success: true, newMessage: message });
-    });
+        res.json({ success: true, newMessage: message });
+      }
+    );
 
     upload.end(req.file.buffer);
   } catch (error) {
@@ -176,30 +182,35 @@ export const sendFileMessage = async (req, res) => {
     const senderId = req.user._id;
     const receiverId = req.params.id;
 
-    const upload = cloudinary.uploader.upload_stream({ resource_type: "raw" }, async (error, result) => {
-      if (error) return res.json({ success: false });
+    const upload = cloudinary.uploader.upload_stream(
+      { resource_type: "raw" },
+      async (error, result) => {
+        if (error) return res.json({ success: false });
 
-      const message = await Message.create({
-        senderId,
-        receiverId,
-        file: {
-          url: result.secure_url,
-          name: req.file.originalname,
-          type: req.file.mimetype,
-          size: req.file.size,
-        },
-      });
+        const message = await Message.create({
+          senderId,
+          receiverId,
+          file: {
+            url: result.secure_url,
+            name: req.file.originalname,
+            type: req.file.mimetype,
+            size: req.file.size,
+          },
+        });
 
-      // emit to receiver
-      const receiverSocketIds = getUserSocketIds(receiverId);
-      receiverSocketIds.forEach((sid) => io.to(sid).emit("newMessage", message));
+        const receiverSocketIds = getUserSocketIds(receiverId);
+        receiverSocketIds.forEach((sid) =>
+          io.to(sid).emit("newMessage", message)
+        );
 
-      // notify sender
-      const senderSocketIds = getUserSocketIds(senderId);
-      senderSocketIds.forEach((sid) => io.to(sid).emit("messageDelivered", message._id.toString()));
+        const senderSocketIds = getUserSocketIds(senderId);
+        senderSocketIds.forEach((sid) =>
+          io.to(sid).emit("messageDelivered", message._id.toString())
+        );
 
-      res.json({ success: true, newMessage: message });
-    });
+        res.json({ success: true, newMessage: message });
+      }
+    );
 
     upload.end(req.file.buffer);
   } catch (error) {
