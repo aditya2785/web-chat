@@ -16,8 +16,8 @@ const LoginPage = () => {
 
   const { login } = useContext(AuthContext);
 
-  const onSubmitHandler = (event) => {
-    event.preventDefault();
+  const onSubmitHandler = (e) => {
+    e.preventDefault();
 
     if (currState === SIGNUP && !isDataSubmitted) {
       setIsDataSubmitted(true);
@@ -25,108 +25,105 @@ const LoginPage = () => {
     }
 
     const apiState = currState === SIGNUP ? "signup" : "login";
-
     login(apiState, { fullName, email, password, bio });
   };
 
   return (
-    <div>
-      <div className="min-h-screen w-full flex items-center justify-center bg-[#0f172a]">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#020617]">
 
-        <img src={assets.logo_big} alt='' className='w-[min(30vw,250px)]' />
+      <div className="w-full max-w-6xl flex items-center justify-evenly max-sm:flex-col gap-10 px-6">
 
-        <form 
-          onSubmit={onSubmitHandler} 
-          className='border-2 bg-white/8 text-white border-gray-500 p-6 flex
-          flex-col gap-6 rounded-lg shadow-lg'
+        {/* LOGO ONLY (NO EXTRA TEXT) */}
+        <img 
+          src={assets.logo_big} 
+          alt="QuickChat Logo" 
+          className="w-[min(35vw,260px)]"
+        />
+
+        {/* FORM CARD */}
+        <form
+          onSubmit={onSubmitHandler}
+          className="w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/20
+                     p-8 rounded-2xl shadow-2xl flex flex-col gap-6 text-white"
         >
-          <h2 className='font-medium text-2xl flex justify-between items-center'>
+          <h2 className="text-3xl font-semibold">
             {currState}
-            {isDataSubmitted && (
-              <img 
-                onClick={() => setIsDataSubmitted(false)} 
-                src={assets.arrow_icon} 
-                alt='' 
-                className='w-5 cursor-pointer' 
-              />
-            )}
           </h2>
 
           {currState === SIGNUP && !isDataSubmitted && (
             <input
-              onChange={(e) => setFullName(e.target.value)}
-              value={fullName}
               type="text"
-              className='p-2 border border-gray-500 rounded-md focus:outline-none'
-              placeholder='Full Name'
-              required
+              placeholder="Full Name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="auth-input"
             />
           )}
 
           {!isDataSubmitted && (
             <>
-              <input 
-                onChange={(e) => setEmail(e.target.value)}
-                value={email}
+              <input
                 type="email"
-                placeholder='Email Address'
-                required
-                className='p-2 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                placeholder="Email Address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="auth-input"
               />
-              <input 
-                onChange={(e) => setPassword(e.target.value)}
-                value={password}
+
+              <input
                 type="password"
-                placeholder='Password'
-                required
-                className='p-2 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="auth-input"
               />
             </>
           )}
 
           {currState === SIGNUP && isDataSubmitted && (
-            <textarea 
-              onChange={(e) => setBio(e.target.value)}
+            <textarea
+              rows={3}
+              placeholder="Provide a short bio..."
               value={bio}
-              rows={4}
-              className='p-2 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500'
-              placeholder='Provide a short bio...'
-            ></textarea>
+              onChange={(e) => setBio(e.target.value)}
+              className="auth-input resize-none"
+            />
           )}
 
-          <button type="submit" className="bg-violet-600 py-2 rounded-md hover:bg-violet-700 transition">
+          <button className="bg-violet-600 hover:bg-violet-700 transition text-white py-3 rounded-xl font-semibold">
             {currState === SIGNUP ? "Create Account" : "Login Now"}
           </button>
 
-          <div className='flex items-center gap-2 text-sm text-gray-500'>
-            <input type="checkbox" />
-            <p>Agree to my terms and my policy</p>
+          <div className="flex items-center gap-2 text-sm text-gray-300">
+            <input type="checkbox" className="accent-violet-500" />
+            <span>I agree to terms & policy</span>
           </div>
 
-          <div className='flex flex-col gap-2'>
+          <p className="text-sm text-gray-400 text-center">
             {currState === SIGNUP ? (
-              <p className='text-sm text-gray-600'>
-                Already made account?{" "}
-                <span 
-                  onClick={() => {setCurrState(LOGIN); setIsDataSubmitted(false)}} 
-                  className='font-medium text-violet-500 cursor-pointer'
+              <>
+                Already have an account?{" "}
+                <span
+                  onClick={() => { setCurrState(LOGIN); setIsDataSubmitted(false); }}
+                  className="text-violet-400 cursor-pointer hover:underline"
                 >
-                  Login Here
+                  Login here
                 </span>
-              </p>
+              </>
             ) : (
-              <p className='text-sm text-gray-600'>
-                Create an Account{" "}
-                <span 
-                  onClick={() => setCurrState(SIGNUP)} 
-                  className='font-medium text-violet-500 cursor-pointer'
+              <>
+                Create new account?{" "}
+                <span
+                  onClick={() => setCurrState(SIGNUP)}
+                  className="text-violet-400 cursor-pointer hover:underline"
                 >
                   Click here
                 </span>
-              </p>
+              </>
             )}
-          </div>
+          </p>
         </form>
+
       </div>
     </div>
   );
