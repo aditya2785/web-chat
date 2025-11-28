@@ -1,3 +1,4 @@
+// pages/HomePage.jsx
 import React, { useContext } from "react";
 import { ChatContext } from "../../context/ChatContext";
 import Sidebar from "../components/Sidebar";
@@ -6,7 +7,8 @@ import RightSidebar from "../components/RightSidebar";
 import { useNavigate } from "react-router-dom";
 
 const HomePage = () => {
-  const { selectedUser, setSelectedUser, setMobileView } = useContext(ChatContext);
+  const { selectedUser, setSelectedUser, setMobileView } =
+    useContext(ChatContext);
   const navigate = useNavigate();
 
   return (
@@ -22,16 +24,19 @@ const HomePage = () => {
           overflow-hidden
         "
       >
-        <div className="border-r border-gray-700 bg-[#1e293b] h-full">
+        {/* Left Sidebar */}
+        <div className="border-r border-gray-700 bg-[#1e293b] h-full overflow-hidden">
           <Sidebar />
         </div>
 
-        <div className="h-full overflow-hidden flex flex-col">
+        {/* Chat Area */}
+        <div className="h-full flex flex-col overflow-hidden">
           <ChatContainer />
         </div>
 
+        {/* Right Sidebar */}
         {selectedUser && (
-          <div className="border-l border-gray-700 bg-[#1e293b] h-full">
+          <div className="border-l border-gray-700 bg-[#1e293b] h-full overflow-hidden">
             <RightSidebar />
           </div>
         )}
@@ -40,20 +45,19 @@ const HomePage = () => {
       {/* MOBILE VIEW */}
       <div className="md:hidden w-full h-full relative overflow-hidden">
 
-        {/* SIDEBAR FULLSCREEN */}
+        {/* Sidebar Fullscreen */}
         {!selectedUser && (
           <div className="absolute inset-0 bg-[#1e293b] overflow-hidden">
             <Sidebar />
           </div>
         )}
 
-        {/* CHAT FULLSCREEN */}
+        {/* Chat Fullscreen */}
         {selectedUser && (
-          <div className="absolute inset-0 bg-[#0f172a] flex flex-col overflow-hidden">
+          <div className="absolute inset-0 bg-[#0f172a] overflow-hidden">
 
-            {/* MOBILE TOP BAR */}
+            {/* Mobile Header */}
             <div className="flex items-center gap-4 px-4 py-3 bg-[#1e293b] border-b border-gray-700">
-
               <button
                 onClick={() => {
                   setSelectedUser(null);
@@ -68,7 +72,7 @@ const HomePage = () => {
               <img
                 src={selectedUser?.profilePic}
                 className="w-10 h-10 rounded-full"
-                alt=""
+                alt="profile"
               />
 
               <div className="flex flex-col">
@@ -78,13 +82,13 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* CHAT CONTAINER (fills whole height) */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Chat Container */}
+            <div className="h-[calc(100vh-56px)] overflow-hidden">
               <ChatContainer />
             </div>
-
           </div>
         )}
+
       </div>
     </div>
   );
