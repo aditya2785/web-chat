@@ -18,13 +18,13 @@ const CLIENT_URLS = [
   "https://web-chat-blush.vercel.app"
 ];
 
-
 // ==================== SOCKET.IO ====================
 export const io = new Server(server, {
   cors: {
-    origin: CLIENT_URLS,
-    credentials: true,
-  },
+    origin: "https://web-chat-blush.vercel.app",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
 });
 
 export const userSocketMap = {};
@@ -42,31 +42,26 @@ io.on("connection", (socket) => {
     delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
+
   socket.on("typing", ({ senderId, receiverId }) => {
-  io.to(receiverId).emit("showTyping", senderId);
-});
+    io.to(receiverId).emit("showTyping", senderId);
+  });
 
-socket.on("stopTyping", ({ senderId, receiverId }) => {
-  io.to(receiverId).emit("hideTyping", senderId);
-});
-
+  socket.on("stopTyping", ({ senderId, receiverId }) => {
+    io.to(receiverId).emit("hideTyping", senderId);
+  });
 });
 
 // ==================== MIDDLEWARE ====================
 app.use(express.json({ limit: "10mb" }));
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || CLIENT_URLS.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  })
-);
+// ✅ FIXED EXPRESS CORS (THIS WAS THE BUG)
+app.use(cors({
+  origin: "https://web-chat-blush.vercel.app",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 
 // ==================== ROUTES ====================
 
