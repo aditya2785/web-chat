@@ -21,6 +21,7 @@ const RightSidebar = () => {
   if (!selectedUser) return null;
 
   const isOwnProfile = selectedUser._id === authUser?._id;
+  const isOnline = onlineUsers?.includes(selectedUser._id);
 
   return (
     <div className="h-full w-full bg-[#111b21] text-white flex flex-col overflow-y-auto">
@@ -37,12 +38,24 @@ const RightSidebar = () => {
           className="w-32 h-32 rounded-full object-cover border-4 border-[#00a884]"
         />
 
+        {/* FULL NAME + STATUS TEXT */}
         <h1 className="text-xl font-semibold mt-4 flex items-center gap-2">
           {selectedUser.fullName}
-          {onlineUsers?.includes(selectedUser._id) && (
-            <span className="w-3 h-3 rounded-full bg-green-500"></span>
+
+          {/* Green Dot */}
+          {isOnline && (
+            <span className="w-3 h-3 rounded-full bg-green-500 border-2 border-[#111b21]"></span>
           )}
         </h1>
+
+        {/* ONLINE / OFFLINE STATUS */}
+        <p className="text-sm mt-1">
+          {isOnline ? (
+            <span className="text-green-400 font-medium">● Online</span>
+          ) : (
+            <span className="text-gray-400">Offline</span>
+          )}
+        </p>
 
         <p className="text-gray-400 text-sm mt-1">
           {selectedUser.bio || "No bio available"}
