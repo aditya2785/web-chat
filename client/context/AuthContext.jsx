@@ -8,99 +8,128 @@ axios.defaults.baseURL = backendUrl;
 
 export const AuthContext = createContext();
 
-
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [authUser, setAuthUser] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [socket, setSocket] = useState(null);
 
-  // ✅ Always attach JWT
+  /** ================================
+   *   ALWAYS ATTACH JWT TO EVERY API
+   *  ================================ */
   axios.interceptors.request.use((config) => {
     const jwt = localStorage.getItem("token");
-    if (jwt) {
-      config.headers.Authorization = `Bearer ${jwt}`;
-    }
+    if (jwt) config.headers.Authorization = `Bearer ${jwt}`;
     return config;
   });
 
-  // ================= CHECK AUTH =================
+  /** ======================
+   *   CHECK AUTH STATUS
+   *  ====================== */
   const checkAuth = async () => {
     try {
       const { data } = await axios.get("/api/users/check");
 
       if (data.success && data.user) {
-        setAuthUser(data.user); // ✅ includes isAdmin
-        connectSocket(data.user);
+        setAuthUser(data.user);
+        connectSocket(data.user); // Connect after verifying user
       }
     } catch {
       setAuthUser(null);
     }
   };
 
-  // ================= LOGIN =================
-  const login = async (state, credentials) => {
+  /** ======================
+   *         LOGIN
+   *  ====================== */
+  const login = async (state, creds) => {
     try {
-      const { data } = await axios.post(`/api/users/${state}`, credentials);
+      const { data } = await axios.post(`/api/users/${state}`, creds);
 
       if (data.success) {
         localStorage.setItem("token", data.token);
         setToken(data.token);
 
-        // ✅ IMPORTANT: Force fresh user fetch so isAdmin is correct
         await checkAuth();
-
         toast.success(data.message);
-      } else {
-        toast.error(data.message);
-      }
+      } else toast.error(data.message);
     } catch {
       toast.error("Login failed");
     }
   };
 
-  // ================= LOGOUT =================
+  /** ======================
+   *         LOGOUT
+   *  ====================== */
   const logout = () => {
     localStorage.removeItem("token");
     setToken(null);
     setAuthUser(null);
     setOnlineUsers([]);
-    if (socket) socket.disconnect();
+
+    if (socket) {
+      socket.disconnect();
+      setSocket(null);
+    }
+
     toast.success("Logged out");
   };
 
-  // ================= UPDATE PROFILE =================
+  /** ======================
+   *     UPDATE PROFILE
+   *  ====================== */
   const updateProfile = async (body) => {
     try {
       const { data } = await axios.put("/api/users/update-profile", body);
+
       if (data.success) {
-        setAuthUser(data.user); // ✅ keep role synced
+        setAuthUser(data.user);
         toast.success("Profile updated");
       }
     } catch {
-      toast.error("Profile update failed");
+      toast.error("Update failed");
     }
   };
 
-  // ================= SOCKET =================
-  const connectSocket = (userData) => {
-    if (!userData || socket?.connected) return;
+  /** ===============================================
+   *             SOCKET CONNECTION (WhatsApp-style)
+   *  =============================================== */
+  const connectSocket = (user) => {
+    if (!user) return;
+
+    // Prevent duplicate connections
+    if (socket?.connected) return;
 
     const newSocket = io(backendUrl, {
-      query: { userId: userData._id },
+      auth: { token: localStorage.getItem("token") }, // SECURE WAY
+      transports: ["websocket"], // reliable
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 500,
     });
 
     setSocket(newSocket);
 
+    // ONLINE USERS UPDATE
     newSocket.on("getOnlineUsers", (userIds) => {
       setOnlineUsers(userIds);
     });
+
+    // AUTO-RECONNECT HANDLER
+    newSocket.on("connect_error", (err) => {
+      console.warn("Socket connect error:", err.message);
+    });
+
+    newSocket.on("disconnect", () => {
+      console.warn("Socket disconnected");
+    });
   };
 
+  /** ======================
+   *   ON LOAD CHECK AUTH
+   *  ====================== */
   useEffect(() => {
-    if (token) {
-      checkAuth();
-    }
+    if (token) checkAuth();
   }, [token]);
 
   return (
