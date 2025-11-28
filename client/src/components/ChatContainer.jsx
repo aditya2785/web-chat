@@ -41,7 +41,7 @@ const ChatContainer = () => {
     if (autoScroll) {
       scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages, autoScroll]);
 
   useEffect(() => {
     if (selectedUser) getMessages(selectedUser._id);
@@ -160,6 +160,8 @@ const ChatContainer = () => {
     );
   }
 
+  const isOnline = onlineUsers?.includes(selectedUser._id);
+
   // ================= UI =================
   return (
     <div className="flex flex-col w-full h-full bg-[#0f172a] overflow-hidden">
@@ -179,7 +181,7 @@ const ChatContainer = () => {
           <p className="text-[10px] md:text-xs">
             {isTyping ? (
               <span className="text-blue-400">Typing...</span>
-            ) : onlineUsers.includes(selectedUser._id) ? (
+            ) : isOnline ? (
               <span className="text-green-500">● Online</span>
             ) : (
               <span className="text-gray-400">Offline</span>

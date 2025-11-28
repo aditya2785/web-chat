@@ -5,17 +5,24 @@ import Sidebar from "../components/Sidebar";
 import ChatContainer from "../components/ChatContainer";
 import RightSidebar from "../components/RightSidebar";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../context/AuthContext";
 
 const HomePage = () => {
-  const { selectedUser, setSelectedUser, mobileView, setMobileView } =
+  const { selectedUser, setSelectedUser, mobileView, setMobileView, typingUsers } =
     useContext(ChatContext);
+
+  const { onlineUsers } = useContext(AuthContext);
 
   const navigate = useNavigate();
 
   // 🔥 FIX: When HomePage loads, ALWAYS show sidebar on mobile
   useEffect(() => {
     setMobileView("sidebar");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const isTyping = selectedUser && !!typingUsers?.[selectedUser._id];
+  const isOnline = selectedUser && onlineUsers?.includes(selectedUser._id);
 
   return (
     <div className="w-screen h-screen bg-[#0f172a] overflow-hidden">
@@ -86,6 +93,15 @@ const HomePage = () => {
               <div className="flex flex-col">
                 <span className="text-white text-sm font-medium">
                   {selectedUser?.fullName}
+                </span>
+                <span className="text-[11px] text-gray-300">
+                  {isTyping ? (
+                    <span className="text-blue-300">Typing...</span>
+                  ) : isOnline ? (
+                    <span className="text-green-500 font-semibold">● Online</span>
+                  ) : (
+                    <span className="text-gray-400">Offline</span>
+                  )}
                 </span>
               </div>
             </div>

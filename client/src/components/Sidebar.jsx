@@ -15,6 +15,7 @@ const Sidebar = () => {
     setUnseenMessages,
     mobileView,
     setMobileView,
+    typingUsers, // new from context
   } = useContext(ChatContext);
 
   const { authUser, logout, onlineUsers } = useContext(AuthContext);
@@ -108,47 +109,58 @@ const Sidebar = () => {
 
       {/* USERS LIST */}
       <div className="flex-1 overflow-y-auto">
-        {filteredUsers.map((user) => (
-          <div
-            key={user._id}
-            className={`
-              flex items-center gap-3 px-4 py-3 cursor-pointer 
-              border-b border-black/10
-              ${selectedUser?._id === user._id ? "bg-[#2a3942]" : "hover:bg-[#1f2c33]"}
-            `}
-            onClick={() => {
-              setSelectedUser(user);
-              setUnseenMessages((prev) => ({ ...prev, [user._id]: 0 }));
+        {filteredUsers.map((user) => {
+          const isTyping = !!typingUsers?.[user._id];
+          const isOnline = onlineUsers?.includes(user._id);
 
-              // Mobile → open chat
-              setMobileView("chat");
-            }}
-          >
-            <div className="relative">
-              <img
-                src={user.profilePic || assets.avatar_icon}
-                className="w-12 h-12 rounded-full object-cover"
-              />
-              {onlineUsers?.includes(user._id) && (
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#111b21]"></span>
+          return (
+            <div
+              key={user._id}
+              className={`
+                flex items-center gap-3 px-4 py-3 cursor-pointer 
+                border-b border-black/10
+                ${selectedUser?._id === user._id ? "bg-[#2a3942]" : "hover:bg-[#1f2c33]"}
+              `}
+              onClick={() => {
+                setSelectedUser(user);
+                setUnseenMessages((prev) => ({ ...prev, [user._id]: 0 }));
+
+                // Mobile → open chat
+                setMobileView("chat");
+              }}
+            >
+              <div className="relative">
+                <img
+                  src={user.profilePic || assets.avatar_icon}
+                  className="w-12 h-12 rounded-full object-cover"
+                />
+                {isOnline && (
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#111b21]"></span>
+                )}
+              </div>
+
+              <div className="flex-1">
+                <p className="font-medium text-[15px]">{user.fullName}</p>
+                <p className="text-xs text-gray-400">
+                  {isTyping ? (
+                    <span className="text-blue-300 font-medium">Typing...</span>
+                  ) : isOnline ? (
+                    "online"
+                  ) : (
+                    "offline"
+                  )}
+                </p>
+              </div>
+
+              {/* Unseen badge */}
+              {unseenMessages[user._id] > 0 && (
+                <div className="bg-green-600 text-white rounded-full text-xs px-2 py-1">
+                  {unseenMessages[user._id]}
+                </div>
               )}
             </div>
-
-            <div className="flex-1">
-              <p className="font-medium text-[15px]">{user.fullName}</p>
-              <p className="text-xs text-gray-400">
-                {onlineUsers?.includes(user._id) ? "online" : "offline"}
-              </p>
-            </div>
-
-            {/* Unseen badge */}
-            {unseenMessages[user._id] > 0 && (
-              <div className="bg-green-600 text-white rounded-full text-xs px-2 py-1">
-                {unseenMessages[user._id]}
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
