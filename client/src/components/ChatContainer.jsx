@@ -25,6 +25,7 @@ const ChatContainer = () => {
   const [input, setInput] = useState("");
   const [previewImage, setPreviewImage] = useState(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
 
   const isTyping = typingUsers?.[selectedUser?._id];
 
@@ -61,26 +62,25 @@ const ChatContainer = () => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      await sendMessage({ image: reader.result });
-    };
+    reader.onloadend = async () => await sendMessage({ image: reader.result });
     reader.readAsDataURL(file);
   };
 
   const handleSendFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
-    reader.onloadend = async () => {
+    reader.onloadend = async () =>
       await sendMessage({
         file: {
           url: reader.result,
           name: file.name,
           type: file.type,
-          size: file.size
-        }
+          size: file.size,
+        },
       });
-    };
+
     reader.readAsDataURL(file);
   };
 
@@ -97,9 +97,9 @@ const ChatContainer = () => {
       mediaRecorder.current.onstop = async () => {
         const audioBlob = new Blob(audioChunks.current, { type: "audio/webm" });
         const reader = new FileReader();
-        reader.onloadend = async () => {
-          await sendMessage({ audio: reader.result });
-        };
+
+        reader.onloadend = async () => await sendMessage({ audio: reader.result });
+
         reader.readAsDataURL(audioBlob);
       };
 
@@ -117,7 +117,7 @@ const ChatContainer = () => {
 
   if (!selectedUser) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-400 bg-[#0f172a] text-sm md:text-base">
+      <div className="flex items-center justify-center h-full text-gray-400 bg-[#0f172a]">
         Select a chat to start messaging
       </div>
     );
@@ -126,86 +126,86 @@ const ChatContainer = () => {
   return (
     <div className="flex flex-col w-full h-full bg-[#0f172a] overflow-hidden">
 
-      {/* HEADER (fixed) */}
+      {/* HEADER (WhatsApp-style) */}
       <div className="
-        flex items-center gap-3 px-4 py-3 border-b border-gray-700 bg-[#1e293b]
-        sticky top-0 z-20
+        flex items-center gap-3 px-4 py-3 bg-[#1f2c33] 
+        border-b border-black/20 sticky top-0 z-30
       ">
         <img
           src={selectedUser.profilePic || assets.avatar_icon}
-          className="w-9 h-9 md:w-10 md:h-10 rounded-full"
+          className="w-10 h-10 rounded-full"
         />
         <div>
-          <h2 className="text-white text-sm md:text-base font-medium">
+          <h2 className="text-white text-sm font-medium">
             {selectedUser.fullName}
           </h2>
 
-          <p className="text-[10px] md:text-xs">
+          <p className="text-[11px] text-gray-300">
             {isTyping ? (
-              <span className="text-blue-400 font-medium">Typing...</span>
+              <span className="text-green-400">typing...</span>
             ) : onlineUsers.includes(selectedUser._id) ? (
-              <span className="text-green-500 font-semibold">● Online</span>
+              <span className="text-green-500">online</span>
             ) : (
-              <span className="text-gray-400">Offline</span>
+              "offline"
             )}
           </p>
         </div>
       </div>
 
-      {/* CHAT BODY (the only scrollable area) */}
+      {/* CHAT BODY (Only scrollable part) */}
       <div
-        ref={chatBodyRef}
         onScroll={handleScroll}
+        ref={chatBodyRef}
         className="
-          flex-1 overflow-y-auto px-3 md:px-5 py-4 space-y-4
-          scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent
+          flex-1 overflow-y-auto px-3 py-4 space-y-3
+          bg-[url('/chatbg.png')] bg-cover bg-center
+          scrollbar-thin scrollbar-thumb-gray-600
         "
       >
         {messages.map((msg) => {
           const isMe = msg.senderId === authUser._id;
 
           return (
-            <div
-              key={msg._id}
-              className={`flex ${isMe ? "justify-end" : "justify-start"}`}
-            >
+            <div key={msg._id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
               <div
                 className={`
-                  px-3 py-2 md:px-4 md:py-3 rounded-xl text-xs md:text-sm max-w-[80%] 
-                  ${isMe ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-100"}
+                  px-3 py-2 rounded-lg max-w-[75%] text-sm shadow 
+                  ${isMe ? "bg-[#005c4b] text-white" : "bg-[#202c33] text-white"}
                 `}
               >
-                {msg.text && <p className="leading-relaxed">{msg.text}</p>}
+                {/* TEXT */}
+                {msg.text && <p>{msg.text}</p>}
 
+                {/* IMAGE */}
                 {msg.image && (
                   <img
                     src={msg.image}
-                    className="rounded-lg cursor-pointer max-h-52 md:max-h-60 mt-2"
+                    className="rounded-lg cursor-pointer max-h-60 mt-2"
                     onClick={() => setPreviewImage(msg.image)}
                   />
                 )}
 
+                {/* AUDIO */}
                 {msg.audio && (
-                  <div className="mt-2 bg-black/30 p-2 rounded-lg">
-                    <audio controls className="w-full">
-                      <source src={msg.audio} type="audio/webm" />
-                    </audio>
-                  </div>
+                  <audio controls className="w-full mt-2">
+                    <source src={msg.audio} type="audio/webm" />
+                  </audio>
                 )}
 
+                {/* FILE */}
                 {msg.file?.url && (
                   <a
                     href={msg.file.url}
                     download
-                    className="text-blue-300 underline block mt-2 break-all"
+                    className="text-blue-300 underline block mt-2"
                   >
                     📎 {msg.file.name}
                   </a>
                 )}
 
-                <div className="text-[9px] text-gray-300 mt-1 flex justify-end">
+                {/* TIME */}
+                <div className="text-[10px] text-gray-300 mt-1 flex justify-end">
                   {formatMessageTime(msg.createdAt)}
-                  {isMe && (msg.seen ? " ✔✔" : " ✔")}
                 </div>
               </div>
             </div>
@@ -215,52 +215,85 @@ const ChatContainer = () => {
         <div ref={scrollEndRef}></div>
       </div>
 
-      {/* INPUT BAR (fixed at bottom) */}
+      {/* ATTACHMENT MENU (WhatsApp popup menu) */}
+      {showAttachMenu && (
+        <div className="
+          absolute bottom-20 right-4 bg-[#233138] p-4 rounded-xl 
+          grid grid-cols-3 gap-4 shadow-xl z-40
+        ">
+          <label className="flex flex-col items-center cursor-pointer">
+            📷
+            <span className="text-white text-xs">Camera</span>
+          </label>
+
+          <label htmlFor="imgUpload" className="flex flex-col items-center cursor-pointer">
+            🖼️
+            <span className="text-white text-xs">Gallery</span>
+          </label>
+
+          <label htmlFor="fileUpload" className="flex flex-col items-center cursor-pointer">
+            📁
+            <span className="text-white text-xs">Document</span>
+          </label>
+        </div>
+      )}
+
+      {/* INPUT BAR (WhatsApp style) */}
       <form
         onSubmit={handleSendMessage}
         className="
-          flex items-center gap-3 p-3 md:p-4 bg-[#1e293b]
-          border-t border-gray-700 sticky bottom-0 z-20
+          flex items-center gap-3 p-3 bg-[#1f2c33]
+          border-t border-black/20 sticky bottom-0 z-30
         "
       >
+        {/* Attachment Button */}
+        <button
+          type="button"
+          onClick={() => setShowAttachMenu(!showAttachMenu)}
+          className="text-white text-2xl"
+        >
+          📎
+        </button>
+
+        {/* Input */}
         <input
           value={input}
           onChange={handleTyping}
-          placeholder="Type a message"
-          className="
-            flex-1 bg-gray-800 p-2 md:p-3 rounded-full text-white outline-none text-sm
-          "
+          placeholder="Message"
+          className="flex-1 bg-[#2a3942] p-3 rounded-xl text-white outline-none"
         />
 
-        <input type="file" hidden id="imgUpload" accept="image/*" onChange={handleSendImage} />
-        <label htmlFor="imgUpload">
-          <img src={assets.gallery_icon} className="w-6 cursor-pointer" />
-        </label>
+        {/* Hidden Inputs */}
+        <input id="imgUpload" hidden type="file" accept="image/*" onChange={handleSendImage} />
+        <input id="fileUpload" hidden type="file" onChange={handleSendFile} />
 
-        <input type="file" hidden id="fileUpload" onChange={handleSendFile} />
-        <label htmlFor="fileUpload" className="text-white text-xl cursor-pointer">📎</label>
+        {/* Mic */}
+        {!input.trim() && (
+          <button
+            type="button"
+            onMouseDown={startRecording}
+            onMouseUp={stopRecording}
+            className="text-white text-2xl"
+          >
+            🎤
+          </button>
+        )}
 
-        <button
-          type="button"
-          onMouseDown={startRecording}
-          onMouseUp={stopRecording}
-          className="text-white text-xl"
-        >
-          🎤
-        </button>
-
-        <button type="submit">
-          <img src={assets.send_button} className="w-8" />
-        </button>
+        {/* Send Button */}
+        {input.trim() && (
+          <button type="submit" className="text-green-400 text-2xl">
+            ➤
+          </button>
+        )}
       </form>
 
-      {/* FULL IMAGE PREVIEW */}
+      {/* Full Image Preview */}
       {previewImage && (
         <div
           onClick={() => setPreviewImage(null)}
           className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
         >
-          <img src={previewImage} className="max-h-[90%] rounded-xl w-auto" />
+          <img src={previewImage} className="max-h-[90%] rounded-xl" />
         </div>
       )}
     </div>
