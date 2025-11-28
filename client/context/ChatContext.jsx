@@ -12,10 +12,6 @@ export const ChatProvider = ({ children }) => {
   const [unseenMessages, setUnseenMessages] = useState({});
   const [typingUsers, setTypingUsers] = useState({});
 
-  // ✅ NEW — WhatsApp mobile navigation
-  const [mobileView, setMobileView] = useState("sidebar");
-  // "sidebar" | "chat" | "profile"
-
   const { socket, axios, authUser, onlineUsers } = useContext(AuthContext);
 
   // keep latest selectedUser id in a ref (for socket handlers)
@@ -49,7 +45,6 @@ export const ChatProvider = ({ children }) => {
     try {
       if (!userId) return;
       const { data } = await axios.get(`/api/messages/${userId}`);
-
       if (data.success) {
         setMessages(data.messages || []);
 
@@ -88,7 +83,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // ================= TYPING INDICATOR =================
+  // ================= TYPING INDICATOR (EMIT) =================
   const emitTyping = () => {
     if (!socket || !selectedUser || !authUser) return;
 
@@ -102,18 +97,20 @@ export const ChatProvider = ({ children }) => {
   useEffect(() => {
     if (!socket || !authUser) return;
 
+    // NEW MESSAGE
     const handleNewMessage = async (message) => {
       const openChatId = selectedUserIdRef.current;
 
+      // if chat with sender is open -> append & mark seen
       if (openChatId && message.senderId === openChatId) {
         setMessages((prev) => [...prev, message]);
-
         try {
           await axios.put(`/api/messages/mark/${message._id}`);
         } catch (e) {
           console.error("Mark seen failed", e);
         }
       } else {
+        // increase unseen count
         setUnseenMessages((prev) => ({
           ...prev,
           [message.senderId]: (prev[message.senderId] || 0) + 1,
@@ -121,6 +118,7 @@ export const ChatProvider = ({ children }) => {
       }
     };
 
+    // DELIVERED STATUS
     const handleDelivered = (id) => {
       setMessages((prev) =>
         prev.map((msg) =>
@@ -129,6 +127,7 @@ export const ChatProvider = ({ children }) => {
       );
     };
 
+    // SEEN STATUS
     const handleSeenUpdate = (id) => {
       setMessages((prev) =>
         prev.map((msg) =>
@@ -137,12 +136,14 @@ export const ChatProvider = ({ children }) => {
       );
     };
 
+    // TYPING
     const handleTyping = ({ senderId }) => {
       setTypingUsers((prev) => ({
         ...prev,
         [senderId]: true,
       }));
 
+      // auto-clear after 2s
       setTimeout(() => {
         setTypingUsers((prev) => ({
           ...prev,
@@ -164,7 +165,7 @@ export const ChatProvider = ({ children }) => {
     };
   }, [socket, authUser, axios]);
 
-  // ================= RELOAD USERS =================
+  // ================= RELOAD USERS WHEN AUTH / ONLINE CHANGES =================
   useEffect(() => {
     if (authUser?._id) {
       getUsers();
@@ -185,10 +186,6 @@ export const ChatProvider = ({ children }) => {
         setUnseenMessages,
         typingUsers,
         emitTyping,
-
-        // ✅ mobile navigation
-        mobileView,
-        setMobileView,
       }}
     >
       {children}
