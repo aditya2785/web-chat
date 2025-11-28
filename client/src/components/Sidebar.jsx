@@ -18,6 +18,7 @@ const Sidebar = () => {
   } = useContext(ChatContext);
 
   const { authUser, logout, onlineUsers, axios } = useContext(AuthContext);
+
   const [input, setInput] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -25,89 +26,66 @@ const Sidebar = () => {
 
   // Load users
   useEffect(() => {
-    if (authUser?._id) {
-      getUsers();
-    }
+    if (authUser?._id) getUsers();
   }, [authUser, onlineUsers]);
 
   // Close menu if clicked outside
   useEffect(() => {
-    const handleClickOutside = (e) => {
+    const handler = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Delete user
-  const deleteUser = async (userId, fullName) => {
-    if (!window.confirm(`Delete ${fullName}? This cannot be undone.`)) return;
-
-    try {
-      const { data } = await axios.delete(`/api/users/delete/${userId}`);
-      if (data.success) {
-        toast.success("User deleted");
-        getUsers();
-      } else {
-        toast.error(data.message);
-      }
-    } catch {
-      toast.error("Delete failed");
-    }
-  };
-
-  // Search filter
   const filteredUsers = input
-    ? users.filter((user) =>
-        user.fullName.toLowerCase().includes(input.toLowerCase())
+    ? users.filter((u) =>
+        u.fullName.toLowerCase().includes(input.toLowerCase())
       )
     : users;
 
-  // ✅ HIDE sidebar when chat is open on mobile
   const sidebarHidden =
     mobileView !== "sidebar" ? "hidden md:flex" : "flex";
 
   return (
-    <div className={`${sidebarHidden} h-full bg-[#1e293b] text-white flex-col w-full md:w-auto`}>
+    <div
+      className={`${sidebarHidden} h-full bg-[#111b21] text-white flex-col w-full md:w-auto`}
+    >
 
-      {/* HEADER */}
-      <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+      {/* HEADER – WhatsApp Style */}
+      <div className="p-4 bg-[#202c33] border-b border-black/20 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <img
             src={authUser?.profilePic || assets.avatar_icon}
-            className="w-10 h-10 rounded-full object-cover"
+            className="w-11 h-11 rounded-full object-cover"
           />
-          <div>
-            <p className="text-sm font-semibold">{authUser?.fullName}</p>
-            {authUser?.isAdmin && (
-              <span className="text-xs text-yellow-400 font-bold">ADMIN</span>
-            )}
-          </div>
+          <p className="font-semibold text-sm">{authUser?.fullName}</p>
         </div>
 
         <div className="relative" ref={menuRef}>
           <img
             src={assets.menu_icon}
-            className="w-5 cursor-pointer"
+            className="w-5 cursor-pointer brightness-150"
             onClick={() => setMenuOpen(!menuOpen)}
           />
 
           {menuOpen && (
-            <div className="absolute right-0 mt-2 w-44 rounded-lg bg-[#0f172a] border border-gray-700 shadow-xl z-50">
+            <div className="absolute right-0 mt-2 w-48 rounded-lg bg-[#233138] border border-black/30 shadow-xl z-50">
               <p
                 onClick={() => {
                   navigate("/profile");
                   setMenuOpen(false);
                 }}
-                className="px-4 py-3 hover:bg-gray-700 cursor-pointer text-sm"
+                className="px-4 py-3 hover:bg-[#2a3942] cursor-pointer text-sm"
               >
-                Edit Profile
+                Profile
               </p>
+
               <p
                 onClick={logout}
-                className="px-4 py-3 hover:bg-red-600 cursor-pointer text-sm text-red-400"
+                className="px-4 py-3 hover:bg-red-600/30 cursor-pointer text-sm text-red-400"
               >
                 Logout
               </p>
@@ -116,15 +94,18 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* SEARCH */}
-      <div className="p-3">
-        <input
-          type="text"
-          placeholder="Search users..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="bg-[#0f172a] px-4 py-2 rounded-full outline-none w-full text-sm"
-        />
+      {/* SEARCH BAR – WhatsApp Style */}
+      <div className="p-3 bg-[#111b21] border-b border-black/20">
+        <div className="bg-[#202c33] flex items-center px-3 py-2 rounded-xl">
+          <span className="text-gray-400 text-lg">🔍</span>
+          <input
+            type="text"
+            placeholder="Search"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            className="bg-transparent flex-1 px-2 outline-none text-sm text-white"
+          />
+        </div>
       </div>
 
       {/* USERS LIST */}
@@ -132,51 +113,43 @@ const Sidebar = () => {
         {filteredUsers.map((user) => (
           <div
             key={user._id}
-            className={`flex items-center gap-3 px-4 py-3 transition ${
-              selectedUser?._id === user._id
-                ? "bg-[#0f172a]"
-                : "hover:bg-[#273449]"
-            }`}
+            className={`
+              flex items-center gap-3 px-4 py-3 cursor-pointer 
+              border-b border-black/10
+              ${selectedUser?._id === user._id ? "bg-[#2a3942]" : "hover:bg-[#1f2c33]"}
+            `}
+            onClick={() => {
+              setSelectedUser(user);
+              setUnseenMessages((prev) => ({ ...prev, [user._id]: 0 }));
+              setMobileView("chat"); // Mobile → open chat fullscreen
+            }}
           >
-
-            <div
-              onClick={() => {
-                setSelectedUser(user);
-                setUnseenMessages((prev) => ({ ...prev, [user._id]: 0 }));
-
-                // ✅ Go to chat screen on mobile
-                setMobileView("chat");
-              }}
-              className="flex items-center gap-3 flex-1 cursor-pointer"
-            >
+            <div className="relative">
               <img
-                src={user?.profilePic || assets.avatar_icon}
-                className="w-10 h-10 rounded-full object-cover"
+                src={user.profilePic || assets.avatar_icon}
+                className="w-12 h-12 rounded-full object-cover"
               />
-              <div>
-                <p className="font-medium">{user.fullName}</p>
-
-                {onlineUsers?.includes(user._id) ? (
-                  <span className="text-xs text-green-500 font-semibold">● Online</span>
-                ) : (
-                  <span className="text-xs text-gray-400">Offline</span>
-                )}
-              </div>
+              {onlineUsers?.includes(user._id) && (
+                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-[#111b21]" />
+              )}
             </div>
 
-            {authUser?.isAdmin === true && (
-              <button
-                onClick={() => deleteUser(user._id, user.fullName)}
-                className="text-red-500 font-bold hover:text-red-700"
-              >
-                ❌
-              </button>
-            )}
+            <div className="flex-1">
+              <p className="font-medium text-[15px]">{user.fullName}</p>
+              <p className="text-xs text-gray-400">
+                {onlineUsers?.includes(user._id) ? "online" : "offline"}
+              </p>
+            </div>
 
+            {/* Unseen Messages Badge */}
+            {unseenMessages[user._id] > 0 && (
+              <div className="bg-green-600 text-white rounded-full text-xs px-2 py-1">
+                {unseenMessages[user._id]}
+              </div>
+            )}
           </div>
         ))}
       </div>
-
     </div>
   );
 };
