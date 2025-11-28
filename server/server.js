@@ -12,8 +12,11 @@ import Message from "./models/message.js";
 const app = express();
 const server = http.createServer(app);
 
-// ✅ ALLOWED CLIENTS (from .env)
-const CLIENT_URLS = process.env.CLIENT_URL.split(",");
+// ✅ SAFE CLIENT URL PARSER
+const CLIENT_URLS = (process.env.CLIENT_URL || "")
+  .split(",")
+  .map(url => url.trim().replace(/\/$/, ""))
+  .filter(Boolean);
 
 // ==================== SOCKET.IO ====================
 export const io = new Server(server, {
@@ -48,12 +51,18 @@ io.on("connection", (socket) => {
 // ==================== MIDDLEWARE ====================
 app.use(express.json({ limit: "10mb" }));
 
-// ✅ PERFECT CORS FIX (NO CRASH, NO BUG)
+// ✅ PERFECT CORS FIX (WORKS ON LOCAL + VERCEL)
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || CLIENT_URLS.includes(origin)) {
+    if (!origin) return callback(null, true);
+
+    const cleanOrigin = origin.replace(/\/$/, "");
+
+    if (CLIENT_URLS.includes(cleanOrigin)) {
       return callback(null, true);
     }
+
+    console.error("❌ Blocked by CORS:", origin);
     return callback(new Error("Blocked by CORS"));
   },
   credentials: true,
