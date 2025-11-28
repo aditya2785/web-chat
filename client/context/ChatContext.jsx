@@ -11,12 +11,11 @@ export const ChatProvider = ({ children }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [unseenMessages, setUnseenMessages] = useState({});
   const [typingUsers, setTypingUsers] = useState({});
+  const [autoScroll, setAutoScroll] = useState(true);   // ✅ NEW
 
   const { socket, axios, authUser, onlineUsers } = useContext(AuthContext);
 
-  // keep latest selectedUser id in a ref (for socket handlers)
   const selectedUserIdRef = useRef(null);
-
   useEffect(() => {
     selectedUserIdRef.current = selectedUser?._id || null;
   }, [selectedUser]);
@@ -45,14 +44,17 @@ export const ChatProvider = ({ children }) => {
     try {
       if (!userId) return;
       const { data } = await axios.get(`/api/messages/${userId}`);
+
       if (data.success) {
         setMessages(data.messages || []);
 
-        // reset unseen count for this user
+        // Reset unseen count
         setUnseenMessages((prev) => ({
           ...prev,
           [userId]: 0,
         }));
+
+        setAutoScroll(true); // scroll to bottom after loading chat
       } else {
         toast.error(data.message || "Failed to load messages");
       }
@@ -74,6 +76,7 @@ export const ChatProvider = ({ children }) => {
 
       if (data.success) {
         setMessages((prev) => [...prev, data.newMessage]);
+        setAutoScroll(true); // ensure scroll down after sending message
       } else {
         toast.error(data.message || "Message send failed");
       }
@@ -83,7 +86,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // ================= TYPING INDICATOR (EMIT) =================
+  // ================= TYPING EMIT =================
   const emitTyping = () => {
     if (!socket || !selectedUser || !authUser) return;
 
@@ -97,20 +100,22 @@ export const ChatProvider = ({ children }) => {
   useEffect(() => {
     if (!socket || !authUser) return;
 
-    // NEW MESSAGE
     const handleNewMessage = async (message) => {
       const openChatId = selectedUserIdRef.current;
 
-      // if chat with sender is open -> append & mark seen
       if (openChatId && message.senderId === openChatId) {
+        // incoming message for open chat
         setMessages((prev) => [...prev, message]);
+
         try {
           await axios.put(`/api/messages/mark/${message._id}`);
         } catch (e) {
           console.error("Mark seen failed", e);
         }
+
+        setAutoScroll(true); // new message → scroll to bottom
       } else {
-        // increase unseen count
+        // message from another chat
         setUnseenMessages((prev) => ({
           ...prev,
           [message.senderId]: (prev[message.senderId] || 0) + 1,
@@ -118,7 +123,6 @@ export const ChatProvider = ({ children }) => {
       }
     };
 
-    // DELIVERED STATUS
     const handleDelivered = (id) => {
       setMessages((prev) =>
         prev.map((msg) =>
@@ -127,7 +131,6 @@ export const ChatProvider = ({ children }) => {
       );
     };
 
-    // SEEN STATUS
     const handleSeenUpdate = (id) => {
       setMessages((prev) =>
         prev.map((msg) =>
@@ -136,14 +139,12 @@ export const ChatProvider = ({ children }) => {
       );
     };
 
-    // TYPING
     const handleTyping = ({ senderId }) => {
       setTypingUsers((prev) => ({
         ...prev,
         [senderId]: true,
       }));
 
-      // auto-clear after 2s
       setTimeout(() => {
         setTypingUsers((prev) => ({
           ...prev,
@@ -163,9 +164,9 @@ export const ChatProvider = ({ children }) => {
       socket.off("messageSeenUpdate", handleSeenUpdate);
       socket.off("typing", handleTyping);
     };
-  }, [socket, authUser, axios]);
+  }, [socket, authUser]);
 
-  // ================= RELOAD USERS WHEN AUTH / ONLINE CHANGES =================
+  // ================= REFRESH USERS WHEN ONLINE CHANGES =================
   useEffect(() => {
     if (authUser?._id) {
       getUsers();
@@ -186,6 +187,10 @@ export const ChatProvider = ({ children }) => {
         setUnseenMessages,
         typingUsers,
         emitTyping,
+
+        // NEW
+        autoScroll,
+        setAutoScroll,
       }}
     >
       {children}
