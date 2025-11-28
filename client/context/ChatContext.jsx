@@ -13,44 +13,44 @@ export const ChatProvider = ({ children }) => {
   const [typingUsers, setTypingUsers] = useState({});
   const [autoScroll, setAutoScroll] = useState(true);
 
-  // MOBILE NAV: "sidebar" | "chat" | "profile"
   const [mobileView, setMobileView] = useState("sidebar");
 
-  // focus/visibility state for notifications
+  // track window focus for notifications
   const [windowFocused, setWindowFocused] = useState(true);
 
-  // from AuthContext
   const { socket, axios, authUser, onlineUsers } = useContext(AuthContext);
 
-  // keep latest selectedUser id in a ref for socket handlers
   const selectedUserIdRef = useRef(null);
   useEffect(() => {
     selectedUserIdRef.current = selectedUser?._id || null;
   }, [selectedUser]);
 
-  // wrapper to set selectedUser + helpful mobile behaviour
   const setSelectedUser = (user) => {
     _setSelectedUser(user);
-    // if on mobile, switch to chat view
+
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       setMobileView("chat");
     }
   };
 
-  // ================= VISIBLE / FOCUS TRACKING (for notifications) =================
+  // ======== Focus / Visibility Tracking ========
   useEffect(() => {
     const onVisibility = () => setWindowFocused(!document.hidden);
     document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("focus", () => setWindowFocused(true));
-    window.addEventListener("blur", () => setWindowFocused(false));
+
+    const onFocus = () => setWindowFocused(true);
+    const onBlur = () => setWindowFocused(false);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("focus", () => setWindowFocused(true));
-      window.removeEventListener("blur", () => setWindowFocused(false));
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
     };
   }, []);
 
-  // Request notification permission when authUser logs in (best-effort)
+  // request notification permission
   useEffect(() => {
     if (!authUser) return;
     if ("Notification" in window && Notification.permission === "default") {
@@ -58,7 +58,7 @@ export const ChatProvider = ({ children }) => {
     }
   }, [authUser]);
 
-  // ================= GET USERS =================
+  // =============== GET USERS ===============
   const getUsers = async () => {
     try {
       if (!authUser) return;
@@ -68,7 +68,6 @@ export const ChatProvider = ({ children }) => {
       if (data.success) {
         setUsers(data.users || []);
         setUnseenMessages(data.unseenMessages || {});
-        // ensure mobile shows sidebar after loading users
         setMobileView("sidebar");
       } else {
         toast.error(data.message || "Failed to fetch users");
@@ -79,22 +78,17 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // ================= GET MESSAGES =================
+  // =============== GET MESSAGES ===============
   const getMessages = async (userId) => {
     try {
       if (!userId) return;
+
       const { data } = await axios.get(`/api/messages/${userId}`);
 
       if (data.success) {
         setMessages(data.messages || []);
-
-        // Reset unseen count
-        setUnseenMessages((prev) => ({
-          ...prev,
-          [userId]: 0,
-        }));
-
-        setAutoScroll(true); // scroll to bottom after loading chat
+        setUnseenMessages((prev) => ({ ...prev, [userId]: 0 }));
+        setAutoScroll(true);
       } else {
         toast.error(data.message || "Failed to load messages");
       }
@@ -104,7 +98,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // ================= SEND MESSAGE (REST) =================
+  // =============== SEND MESSAGE ===============
   const sendMessage = async (payload) => {
     try {
       if (!selectedUser?._id) return;
@@ -115,7 +109,6 @@ export const ChatProvider = ({ children }) => {
       );
 
       if (data.success) {
-        // append new message locally (optimistic)
         setMessages((prev) => [...prev, data.newMessage]);
         setAutoScroll(true);
       } else {
@@ -127,7 +120,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // ================= TYPING EMIT =================
+  // =============== TYPING EVENT ===============
   const emitTyping = () => {
     if (!socket || !selectedUser || !authUser) return;
 
@@ -137,63 +130,69 @@ export const ChatProvider = ({ children }) => {
     });
   };
 
-  // ================= SOCKET LISTENERS =================
+  // =============== SOCKET LISTENERS ===============
   useEffect(() => {
-    // require both socket and authUser
     if (!socket || !authUser) return;
 
-    // define handlers so we can remove them reliably
     const handleNewMessage = async (message) => {
       try {
         const openChatId = selectedUserIdRef.current;
-
-        // If this is an incoming message from someone else
         const fromOther = message.senderId !== authUser._id;
 
         if (openChatId && message.senderId === openChatId) {
-          // message belongs to currently open chat
           setMessages((prev) => [...prev, message]);
 
-          // mark seen on server (best-effort)
-          axios.put(`/api/messages/mark/${message._id}`).catch((e) => {
-            console.error("Mark seen failed", e);
-          });
-
-          // ensure autoscroll to bottom
+          axios.put(`/api/messages/mark/${message._id}`).catch(() => {});
           setAutoScroll(true);
         } else {
-          // increment unseen count
           setUnseenMessages((prev) => ({
             ...prev,
             [message.senderId]: (prev[message.senderId] || 0) + 1,
           }));
         }
 
-        // Notification: show when message is from other user and user is not focused
+        // Show notification only when NOT focused
         if (fromOther) {
-          const showNotification = typeof window !== "undefined" && (!windowFocused || document.hidden);
-          if (showNotification && "Notification" in window && Notification.permission === "granted") {
-            try {
-              const sender = users.find((u) => String(u._id) === String(message.senderId)) || {};
-              const title = sender.fullName || "New message";
-              const body = message.text ? message.text : message.image ? "📷 Photo" : message.file ? `📎 ${message.file.name}` : "New message";
-              const notif = new Notification(title, {
-                body,
-                // tag to avoid stacking many notifications for same chat
-                tag: `chat-${message.senderId}`,
-                icon: sender.profilePic || undefined,
-              });
-              // clicking notification focuses the window (best-effort)
-              notif.onclick = () => {
-                window.focus();
-                // open the chat with sender
-                setSelectedUser(sender);
+          const showNotification =
+            typeof window !== "undefined" &&
+            (!windowFocused || document.hidden);
+
+          if (
+            showNotification &&
+            "Notification" in window &&
+            Notification.permission === "granted"
+          ) {
+            const sender =
+              users.find(
+                (u) => String(u._id) === String(message.senderId)
+              ) || null;
+
+            if (!sender) return; // FIX #3
+
+            const title = sender.fullName || "New message";
+            const body = message.text
+              ? message.text
+              : message.image
+              ? "📷 Photo"
+              : message.file
+              ? `📎 ${message.file.name}`
+              : "New message";
+
+            const notif = new Notification(title, {
+              body,
+              tag: `chat-${message.senderId}`,
+              icon: sender.profilePic || undefined,
+            });
+
+            notif.onclick = () => {
+              window.focus();
+              setSelectedUser(sender);
+
+              // FIX #2 — Only mobile should switch to chat
+              if (window.innerWidth < 768) {
                 setMobileView("chat");
-              };
-            } catch (err) {
-              // swallow notification errors
-              console.warn("Notification error:", err);
-            }
+              }
+            };
           }
         }
       } catch (err) {
@@ -215,35 +214,29 @@ export const ChatProvider = ({ children }) => {
 
     const handleTyping = ({ senderId }) => {
       setTypingUsers((prev) => ({ ...prev, [senderId]: true }));
-
-      // clear after 2s
       setTimeout(() => {
         setTypingUsers((prev) => ({ ...prev, [senderId]: false }));
       }, 2000);
     };
 
-    // register
     socket.on("newMessage", handleNewMessage);
     socket.on("messageDelivered", handleDelivered);
     socket.on("messageSeenUpdate", handleSeenUpdate);
     socket.on("typing", handleTyping);
 
-    // cleanup
     return () => {
       socket.off("newMessage", handleNewMessage);
       socket.off("messageDelivered", handleDelivered);
       socket.off("messageSeenUpdate", handleSeenUpdate);
       socket.off("typing", handleTyping);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socket, authUser, axios, users, windowFocused]);
+  }, [socket, authUser, axios, windowFocused]); // FIX #1 → removed `users`
 
-  // ================= RELOAD USERS WHEN AUTH / ONLINE CHANGES =================
+  // reload user list
   useEffect(() => {
     if (authUser?._id) {
       getUsers();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser, onlineUsers]);
 
   return (
@@ -260,16 +253,10 @@ export const ChatProvider = ({ children }) => {
         setUnseenMessages,
         typingUsers,
         emitTyping,
-
-        // auto-scroll control
         autoScroll,
         setAutoScroll,
-
-        // mobile navigation
         mobileView,
         setMobileView,
-
-        // helper (optional)
         openChat: setSelectedUser,
       }}
     >
