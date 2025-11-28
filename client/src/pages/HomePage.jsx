@@ -1,5 +1,5 @@
 // pages/HomePage.jsx
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import { ChatContext } from "../../context/ChatContext";
 import Sidebar from "../components/Sidebar";
 import ChatContainer from "../components/ChatContainer";
@@ -7,14 +7,20 @@ import RightSidebar from "../components/RightSidebar";
 import { useNavigate } from "react-router-dom";
 
 const HomePage = () => {
-  const { selectedUser, setSelectedUser, setMobileView } =
+  const { selectedUser, setSelectedUser, mobileView, setMobileView } =
     useContext(ChatContext);
+
   const navigate = useNavigate();
+
+  // 🔥 FIX: When HomePage loads, ALWAYS show sidebar on mobile
+  useEffect(() => {
+    setMobileView("sidebar");
+  }, []);
 
   return (
     <div className="w-screen h-screen bg-[#0f172a] overflow-hidden">
 
-      {/* DESKTOP VIEW */}
+      {/* ================ DESKTOP VIEW ================ */}
       <div
         className="
           hidden md:grid
@@ -42,26 +48,28 @@ const HomePage = () => {
         )}
       </div>
 
-      {/* MOBILE VIEW */}
+      {/* ================ MOBILE VIEW ================ */}
       <div className="md:hidden w-full h-full relative overflow-hidden">
 
-        {/* Sidebar Fullscreen */}
-        {!selectedUser && (
+        {/* ----------- Sidebar (FULL SCREEN) ----------- */}
+        {mobileView === "sidebar" && (
           <div className="absolute inset-0 bg-[#1e293b] overflow-hidden">
             <Sidebar />
           </div>
         )}
 
-        {/* Chat Fullscreen */}
-        {selectedUser && (
+        {/* ----------- Chat (FULL SCREEN) ----------- */}
+        {mobileView === "chat" && selectedUser && (
           <div className="absolute inset-0 bg-[#0f172a] overflow-hidden">
 
-            {/* Mobile Header */}
+            {/* TOP BAR (fixed) */}
             <div className="flex items-center gap-4 px-4 py-3 bg-[#1e293b] border-b border-gray-700">
+              
+              {/* Back Button */}
               <button
                 onClick={() => {
                   setSelectedUser(null);
-                  setMobileView("sidebar");
+                  setMobileView("sidebar");   // go back to user list
                   navigate("/");
                 }}
                 className="text-white text-2xl"
@@ -82,7 +90,7 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* Chat Container */}
+            {/* Chat Screen */}
             <div className="h-[calc(100vh-56px)] overflow-hidden">
               <ChatContainer />
             </div>
