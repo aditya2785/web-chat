@@ -12,11 +12,13 @@ import Message from "./models/message.js";
 const app = express();
 const server = http.createServer(app);
 
-// ✅ CLEAN CLIENT URL LIST
+// ✅ AUTO CLEAN CLIENT URLS
 const CLIENT_URLS = (process.env.CLIENT_URL || "")
   .split(",")
   .map(url => url.trim().replace(/\/$/, ""))
   .filter(Boolean);
+
+console.log("✅ Allowed Origins:", CLIENT_URLS);
 
 // ================= SOCKET.IO =================
 export const io = new Server(server, {
@@ -52,7 +54,7 @@ io.on("connection", (socket) => {
 app.use(express.json({ limit: "10mb" }));
 
 app.use(cors({
-  origin: (origin, callback) => {
+  origin: function (origin, callback) {
     if (!origin) return callback(null, true);
 
     const cleanOrigin = origin.replace(/\/$/, "");
@@ -62,10 +64,15 @@ app.use(cors({
     }
 
     console.log("❌ CORS BLOCKED:", origin);
-    return callback(new Error("Blocked by CORS"));
+    callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+// ✅ HANDLE PREFLIGHT CORRECTLY
+app.options("*", cors());
 
 // ================= ROUTES =================
 app.get("/", (req, res) => {
