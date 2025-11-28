@@ -15,8 +15,9 @@ const server = http.createServer(app);
 // ✅ ALLOW BOTH LOCAL + PRODUCTION FRONTEND
 const CLIENT_URLS = [
   "http://localhost:5173",
-  "https://web-chat-hoco8pxzd-aditya-jhas-projects-f2a6a356.vercel.app"
+  "https://web-chat-blush.vercel.app"
 ];
+
 
 // ==================== SOCKET.IO ====================
 export const io = new Server(server, {
