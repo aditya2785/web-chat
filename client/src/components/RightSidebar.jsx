@@ -26,8 +26,11 @@ const RightSidebar = () => {
   const isOwnProfile = selectedUser._id === authUser?._id;
 
   return (
-    <div className="h-full w-full bg-[#0f172a] text-white flex flex-col justify-between p-6">
-      
+    <div className="
+      h-full w-full bg-[#0f172a] text-white flex flex-col justify-between 
+      p-4 md:p-6 overflow-y-auto md:overflow-y-visible
+    ">
+
       {/* PROFILE HEADER */}
       <div className="flex flex-col items-center gap-3 text-center">
 
@@ -35,34 +38,43 @@ const RightSidebar = () => {
           <img
             src={selectedUser?.profilePic || assets.avatar_icon}
             alt="profile"
-            className="w-32 h-32 rounded-full object-cover border-4 border-violet-600 shadow-lg"
+            className="
+              rounded-full object-cover border-4 border-violet-600 shadow-lg
+              w-24 h-24 md:w-32 md:h-32
+            "
           />
 
           {isOwnProfile && (
             <button
               onClick={() => navigate("/profile")}
-              className="absolute bottom-2 right-2 bg-violet-600 p-2 rounded-full text-xs shadow-md hover:bg-violet-700 transition"
+              className="
+                absolute bottom-2 right-2 bg-violet-600 p-2 rounded-full text-xs 
+                shadow-md hover:bg-violet-700 transition
+              "
             >
               ✏️
             </button>
           )}
         </div>
 
-        <h1 className="text-2xl font-semibold flex items-center gap-2">
+        <h1 className="text-xl md:text-2xl font-semibold flex items-center gap-2">
           {selectedUser.fullName}
           {onlineUsers?.includes(selectedUser._id) && (
             <span className="w-3 h-3 rounded-full bg-green-500"></span>
           )}
         </h1>
 
-        <p className="text-sm text-gray-400 max-w-[240px]">
+        <p className="text-xs md:text-sm text-gray-400 max-w-[260px]">
           {selectedUser.bio || "No bio available"}
         </p>
 
         {isOwnProfile && (
           <button
             onClick={() => navigate("/profile")}
-            className="mt-2 text-sm px-4 py-1 rounded-full bg-violet-600 hover:bg-violet-700 transition"
+            className="
+              mt-2 text-xs md:text-sm px-4 py-1 rounded-full 
+              bg-violet-600 hover:bg-violet-700 transition
+            "
           >
             Edit Profile
           </button>
@@ -70,10 +82,13 @@ const RightSidebar = () => {
       </div>
 
       {/* MEDIA GALLERY */}
-      <div className="mt-6 flex-1">
+      <div className="mt-6 flex-1 w-full">
         <p className="text-sm font-semibold mb-3">Shared Media</p>
 
-        <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[260px] pr-1">
+        <div className="
+          grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto 
+          max-h-[240px] md:max-h-[260px] pr-1
+        ">
           {msgImages.length > 0 ? (
             msgImages.map((url, index) => (
               <div
@@ -83,7 +98,7 @@ const RightSidebar = () => {
               >
                 <img
                   src={url}
-                  className="w-full h-28 object-cover"
+                  className="w-full h-24 sm:h-28 object-cover"
                   alt="media"
                 />
               </div>
@@ -101,7 +116,10 @@ const RightSidebar = () => {
         {isOwnProfile && (
           <button
             onClick={() => navigate("/profile")}
-            className="bg-[#1e293b] border border-violet-500 text-violet-400 py-2 rounded-full hover:bg-violet-600 hover:text-white transition"
+            className="
+              bg-[#1e293b] border border-violet-500 text-violet-400 
+              py-2 rounded-full hover:bg-violet-600 hover:text-white transition
+            "
           >
             Update Profile
           </button>

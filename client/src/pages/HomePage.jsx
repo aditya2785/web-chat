@@ -10,25 +10,46 @@ const HomePage = () => {
   return (
     <div className="w-screen h-screen bg-[#0f172a] overflow-hidden">
       <div
-        className={`w-full h-full grid
-        ${selectedUser
-          ? "grid-cols-[320px_1fr_320px] max-lg:grid-cols-[280px_1fr]"
-          : "grid-cols-[320px_1fr]"
-        }`}
+        className={`
+          w-full h-full grid transition-all duration-300
+
+          /* 💻 Desktop Layout */
+          ${selectedUser
+            ? "grid-cols-[320px_1fr_320px] max-xl:grid-cols-[280px_1fr_280px]"
+            : "grid-cols-[320px_1fr] max-xl:grid-cols-[280px_1fr]"}
+
+          /* 📱 Mobile Layout */
+          max-md:grid-cols-1
+        `}
       >
-        {/* LEFT */}
-        <div className="border-r border-gray-700 bg-[#1e293b] h-full overflow-hidden">
+        {/* LEFT SIDEBAR */}
+        <div
+          className={`
+            border-r border-gray-700 bg-[#1e293b] h-full overflow-hidden
+            max-md:${selectedUser ? "hidden" : "block"}
+          `}
+        >
           <Sidebar />
         </div>
 
         {/* CENTER CHAT */}
-        <div className="h-full overflow-hidden flex flex-col">
+        <div
+          className={`
+            h-full overflow-hidden flex flex-col
+            max-md:${selectedUser ? "block" : "hidden"}
+          `}
+        >
           <ChatContainer />
         </div>
 
-        {/* RIGHT */}
+        {/* RIGHT SIDEBAR (DESKTOP ONLY) */}
         {selectedUser && (
-          <div className="border-l border-gray-700 bg-[#1e293b] h-full overflow-hidden">
+          <div
+            className={`
+              border-l border-gray-700 bg-[#1e293b] h-full overflow-hidden
+              max-lg:hidden
+            `}
+          >
             <RightSidebar />
           </div>
         )}
