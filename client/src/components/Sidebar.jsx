@@ -1,9 +1,9 @@
+// components/Sidebar.jsx
 import React, { useEffect, useContext, useState, useRef } from "react";
 import assets from "../assets/assets";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { ChatContext } from "../../context/ChatContext";
-import toast from "react-hot-toast";
 
 const Sidebar = () => {
   const {
@@ -17,7 +17,7 @@ const Sidebar = () => {
     setMobileView,
   } = useContext(ChatContext);
 
-  const { authUser, logout, onlineUsers, axios } = useContext(AuthContext);
+  const { authUser, logout, onlineUsers } = useContext(AuthContext);
 
   const [input, setInput] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -29,7 +29,7 @@ const Sidebar = () => {
     if (authUser?._id) getUsers();
   }, [authUser, onlineUsers]);
 
-  // Close menu if clicked outside
+  // Close dropdown
   useEffect(() => {
     const handler = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -46,15 +46,13 @@ const Sidebar = () => {
       )
     : users;
 
-  const sidebarHidden =
-    mobileView !== "sidebar" ? "hidden md:flex" : "flex";
+  // Mobile → hide sidebar when chat is open
+  const sidebarVisible = mobileView === "sidebar" ? "flex" : "hidden md:flex";
 
   return (
-    <div
-      className={`${sidebarHidden} h-full bg-[#111b21] text-white flex-col w-full md:w-auto`}
-    >
+    <div className={`${sidebarVisible} flex-col h-full w-full bg-[#111b21] text-white`}>
 
-      {/* HEADER – WhatsApp Style */}
+      {/* HEADER */}
       <div className="p-4 bg-[#202c33] border-b border-black/20 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <img
@@ -94,7 +92,7 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* SEARCH BAR – WhatsApp Style */}
+      {/* SEARCH BAR */}
       <div className="p-3 bg-[#111b21] border-b border-black/20">
         <div className="bg-[#202c33] flex items-center px-3 py-2 rounded-xl">
           <span className="text-gray-400 text-lg">🔍</span>
@@ -121,7 +119,9 @@ const Sidebar = () => {
             onClick={() => {
               setSelectedUser(user);
               setUnseenMessages((prev) => ({ ...prev, [user._id]: 0 }));
-              setMobileView("chat"); // Mobile → open chat fullscreen
+
+              // Mobile → open chat
+              setMobileView("chat");
             }}
           >
             <div className="relative">
@@ -130,7 +130,7 @@ const Sidebar = () => {
                 className="w-12 h-12 rounded-full object-cover"
               />
               {onlineUsers?.includes(user._id) && (
-                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-[#111b21]" />
+                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#111b21]"></span>
               )}
             </div>
 
@@ -141,7 +141,7 @@ const Sidebar = () => {
               </p>
             </div>
 
-            {/* Unseen Messages Badge */}
+            {/* Unseen badge */}
             {unseenMessages[user._id] > 0 && (
               <div className="bg-green-600 text-white rounded-full text-xs px-2 py-1">
                 {unseenMessages[user._id]}
