@@ -3,35 +3,23 @@ import User from "../models/User.js";
 
 export const verifyAdmin = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const token = req.headers.authorization?.split(" ")[1];
 
-    if (!authHeader || !authHeader.startsWith("Bearer")) {
-      return res.status(401).json({
-        success: false,
-        message: "No token provided"
-      });
+    if (!token) {
+      return res.status(401).json({ success: false, message: "No token" });
     }
 
-    const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // ✅ FIXED: use decoded.userId (correct field)
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(decoded.userId); // ✅ FIX HERE
 
     if (!user || !user.isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: "Admin access required"
-      });
+      return res.status(403).json({ success: false, message: "Admin only" });
     }
 
     req.user = user;
     next();
-  } catch (error) {
-    console.error("Admin Auth Error:", error.message);
-    res.status(401).json({
-      success: false,
-      message: "Invalid or expired token"
-    });
+  } catch {
+    res.status(401).json({ success: false, message: "Invalid token" });
   }
 };

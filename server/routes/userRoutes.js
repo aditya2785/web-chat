@@ -35,16 +35,6 @@ userRouter.get("/users", protectRoute, async (req, res) => {
 // ================= ADMIN DELETE USER =================
 userRouter.delete("/delete/:id", protectRoute, verifyAdmin, async (req, res) => {
   try {
-    const userToDelete = await User.findById(req.params.id);
-
-    if (!userToDelete) {
-      return res.json({
-        success: false,
-        message: "User not found"
-      });
-    }
-
-    // Prevent admin deleting himself
     if (req.user._id.toString() === req.params.id) {
       return res.json({
         success: false,
@@ -52,16 +42,14 @@ userRouter.delete("/delete/:id", protectRoute, verifyAdmin, async (req, res) => 
       });
     }
 
-    await User.findByIdAndDelete(req.params.id);
+    const user = await User.findByIdAndDelete(req.params.id);
 
-    res.json({
-      success: true,
-      message: "User deleted successfully"
-    });
+    if (!user) {
+      return res.json({ success: false, message: "User not found" });
+    }
 
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.json({ success: true, message: "User deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
-
-export default userRouter;
