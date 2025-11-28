@@ -12,35 +12,64 @@ import Message from "./models/message.js";
 const app = express();
 const server = http.createServer(app);
 
-// ✅ ALLOWED FRONTEND DOMAINS
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://web-chat-blush.vercel.app"
-];
+// ✅ CLEAN CLIENT URL LIST
+const CLIENT_URLS = (process.env.CLIENT_URL || "")
+  .split(",")
+  .map(url => url.trim().replace(/\/$/, ""))
+  .filter(Boolean);
 
 // ================= SOCKET.IO =================
 export const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
-    credentials: true
-  }
+    origin: CLIENT_URLS,
+    credentials: true,
+  },
+});
+
+export const userSocketMap = {};
+
+io.on("connection", (socket) => {
+  const userId = socket.handshake.query.userId;
+
+  if (userId) userSocketMap[userId] = socket.id;
+  io.emit("getOnlineUsers", Object.keys(userSocketMap));
+
+  socket.on("disconnect", () => {
+    delete userSocketMap[userId];
+    io.emit("getOnlineUsers", Object.keys(userSocketMap));
+  });
+
+  socket.on("typing", ({ senderId, receiverId }) => {
+    io.to(receiverId).emit("showTyping", senderId);
+  });
+
+  socket.on("stopTyping", ({ senderId, receiverId }) => {
+    io.to(receiverId).emit("hideTyping", senderId);
+  });
 });
 
 // ================= MIDDLEWARE =================
 app.use(express.json({ limit: "10mb" }));
 
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error("CORS blocked: " + origin));
+
+    const cleanOrigin = origin.replace(/\/$/, "");
+
+    if (CLIENT_URLS.includes(cleanOrigin)) {
+      return callback(null, true);
+    }
+
+    console.log("❌ CORS BLOCKED:", origin);
+    return callback(new Error("Blocked by CORS"));
   },
-  credentials: true
+  credentials: true,
 }));
 
 // ================= ROUTES =================
 app.get("/", (req, res) => {
-  res.send("✅ Backend working!");
+  res.send("✅ Backend running perfectly");
 });
 
 app.get("/api/users-status", async (req, res) => {
