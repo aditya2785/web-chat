@@ -1,12 +1,11 @@
-import React, { useState, useContext } from 'react'
-import assets from '../assets/assets'
-import { AuthContext } from '../../context/AuthContext'
+import React, { useState, useContext } from "react";
+import assets from "../assets/assets";
+import { AuthContext } from "../../context/AuthContext";
 
 const SIGNUP = "Sign Up";
 const LOGIN = "Login";
 
 const LoginPage = () => {
-
   const [currState, setCurrState] = useState(SIGNUP);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -29,24 +28,26 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#020617]">
+    <div className="min-h-screen w-full flex items-center justify-center 
+      bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#020617] p-4">
 
-      <div className="w-full max-w-6xl flex items-center justify-evenly max-sm:flex-col gap-10 px-6">
+      <div className="w-full max-w-6xl flex items-center justify-evenly 
+        max-sm:flex-col gap-10 px-6 max-sm:px-2">
 
-        {/* LOGO ONLY (NO EXTRA TEXT) */}
-        <img 
-          src={assets.logo_big} 
-          alt="QuickChat Logo" 
-          className="w-[min(35vw,260px)]"
+        {/* LOGO */}
+        <img
+          src={assets.logo_big}
+          alt="QuickChat Logo"
+          className="w-[min(35vw,260px)] max-sm:w-40"
         />
 
         {/* FORM CARD */}
         <form
           onSubmit={onSubmitHandler}
           className="w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/20
-                     p-8 rounded-2xl shadow-2xl flex flex-col gap-6 text-white"
+            p-8 max-sm:p-5 rounded-2xl shadow-xl flex flex-col gap-6 text-white"
         >
-          <h2 className="text-3xl font-semibold">
+          <h2 className="text-3xl font-semibold max-sm:text-2xl">
             {currState}
           </h2>
 
@@ -90,21 +91,27 @@ const LoginPage = () => {
             />
           )}
 
-          <button className="bg-violet-600 hover:bg-violet-700 transition text-white py-3 rounded-xl font-semibold">
+          {/* SUBMIT BUTTON */}
+          <button className="bg-violet-600 hover:bg-violet-700 transition py-3 rounded-xl font-semibold">
             {currState === SIGNUP ? "Create Account" : "Login Now"}
           </button>
 
+          {/* T&C CHECKBOX */}
           <div className="flex items-center gap-2 text-sm text-gray-300">
             <input type="checkbox" className="accent-violet-500" />
             <span>I agree to terms & policy</span>
           </div>
 
+          {/* SWITCH LOGIN/SIGNUP */}
           <p className="text-sm text-gray-400 text-center">
             {currState === SIGNUP ? (
               <>
                 Already have an account?{" "}
                 <span
-                  onClick={() => { setCurrState(LOGIN); setIsDataSubmitted(false); }}
+                  onClick={() => {
+                    setCurrState(LOGIN);
+                    setIsDataSubmitted(false);
+                  }}
                   className="text-violet-400 cursor-pointer hover:underline"
                 >
                   Login here
@@ -114,7 +121,10 @@ const LoginPage = () => {
               <>
                 Create new account?{" "}
                 <span
-                  onClick={() => setCurrState(SIGNUP)}
+                  onClick={() => {
+                    setCurrState(SIGNUP);
+                    setIsDataSubmitted(false);
+                  }}
                   className="text-violet-400 cursor-pointer hover:underline"
                 >
                   Click here
@@ -123,7 +133,6 @@ const LoginPage = () => {
             )}
           </p>
         </form>
-
       </div>
     </div>
   );
