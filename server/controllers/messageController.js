@@ -2,9 +2,15 @@
 import Message from "../models/message.js";
 import User from "../models/User.js";
 import cloudinary from "../lib/cloudinary.js";
-import { io, userSockets } from "../server.js"; // <-- use userSockets (matches server.js export)
+import { io, userSockets } from "../server.js";
 
-// ================= GET USERS FOR SIDEBAR =================
+// helper: get all socket ids for a user
+const getUserSocketIds = (userId) => {
+  if (!userSockets[userId]) return [];
+  return Array.from(userSockets[userId]);
+};
+
+// ================= GET USERS =================
 export const getUsersForSidebar = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -39,10 +45,27 @@ export const getMessages = async (req, res) => {
       ],
     }).sort({ createdAt: 1 });
 
+    // mark as seen for messages sent by selectedUser -> me
     await Message.updateMany(
       { senderId: selectedUserId, receiverId: myId, seen: false },
       { seen: true }
     );
+
+    // notify sender (selectedUser) that their messages were seen
+    // We find those updated messages and emit seen events to the sender
+    const updated = await Message.find({
+      senderId: selectedUserId,
+      receiverId: myId,
+      seen: true,
+    }).select("_id senderId");
+
+    // emit seen event per message (you might optimize to a single event)
+    const senderSocketIds = getUserSocketIds(selectedUserId);
+    updated.forEach((m) => {
+      senderSocketIds.forEach((sid) =>
+        io.to(sid).emit("messageSeenUpdate", m._id.toString())
+      );
+    });
 
     res.json({ success: true, messages });
   } catch (error) {
@@ -50,15 +73,26 @@ export const getMessages = async (req, res) => {
   }
 };
 
-// ================= MARK SEEN =================
+// ================= MARK SEEN (single message) =================
 export const markMessageAsSeen = async (req, res) => {
   try {
-    await Message.findByIdAndUpdate(req.params.id, { seen: true });
+    const msgId = req.params.id;
+    const message = await Message.findByIdAndUpdate(msgId, { seen: true }, { new: true });
+
+    if (message) {
+      // notify original sender that this message was seen
+      const senderSocketIds = getUserSocketIds(message.senderId);
+      senderSocketIds.forEach((sid) =>
+        io.to(sid).emit("messageSeenUpdate", message._id.toString())
+      );
+    }
+
     res.json({ success: true });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
+
 
 // ================= SEND TEXT / IMAGE =================
 export const sendMessage = async (req, res) => {
@@ -70,7 +104,10 @@ export const sendMessage = async (req, res) => {
     let imageUrl = "";
 
     if (image) {
-      const upload = await cloudinary.uploader.upload(image);
+      const upload = await cloudinary.uploader.upload(image, {
+        folder: "chat-images",
+        resource_type: "image",
+      });
       imageUrl = upload.secure_url;
     }
 
@@ -81,14 +118,24 @@ export const sendMessage = async (req, res) => {
       image: imageUrl || "",
     });
 
-    // Emit to receiver sockets
-    emitSocket(receiverId, message);
+    // Emit to receiver
+    const receiverSocketIds = getUserSocketIds(receiverId);
+    receiverSocketIds.forEach((sid) => io.to(sid).emit("newMessage", message));
+
+    // Acknowledge delivery
+    const senderSocketIds = getUserSocketIds(senderId);
+    senderSocketIds.forEach((sid) =>
+      io.to(sid).emit("messageDelivered", message._id.toString())
+    );
 
     res.json({ success: true, newMessage: message });
+
   } catch (error) {
+    console.error("sendMessage error:", error);
     res.json({ success: false, message: error.message });
   }
 };
+
 
 // ================= SEND VOICE =================
 export const sendVoiceMessage = async (req, res) => {
@@ -96,24 +143,29 @@ export const sendVoiceMessage = async (req, res) => {
     const senderId = req.user._id;
     const receiverId = req.params.id;
 
-    const upload = cloudinary.uploader.upload_stream(
-      { resource_type: "video" },
-      async (error, result) => {
-        if (error) return res.json({ success: false });
+    const upload = cloudinary.uploader.upload_stream({ resource_type: "video" }, async (error, result) => {
+      if (error) return res.json({ success: false });
 
-        const message = await Message.create({
-          senderId,
-          receiverId,
-          audio: result.secure_url,
-        });
+      const message = await Message.create({
+        senderId,
+        receiverId,
+        audio: result.secure_url,
+      });
 
-        emitSocket(receiverId, message);
-        res.json({ success: true, newMessage: message });
-      }
-    );
+      // emit to receiver
+      const receiverSocketIds = getUserSocketIds(receiverId);
+      receiverSocketIds.forEach((sid) => io.to(sid).emit("newMessage", message));
+
+      // notify sender that message was delivered (server forwarded)
+      const senderSocketIds = getUserSocketIds(senderId);
+      senderSocketIds.forEach((sid) => io.to(sid).emit("messageDelivered", message._id.toString()));
+
+      res.json({ success: true, newMessage: message });
+    });
 
     upload.end(req.file.buffer);
   } catch (error) {
+    console.error("sendVoiceMessage error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -124,54 +176,34 @@ export const sendFileMessage = async (req, res) => {
     const senderId = req.user._id;
     const receiverId = req.params.id;
 
-    const upload = cloudinary.uploader.upload_stream(
-      { resource_type: "raw" },
-      async (error, result) => {
-        if (error) return res.json({ success: false });
+    const upload = cloudinary.uploader.upload_stream({ resource_type: "raw" }, async (error, result) => {
+      if (error) return res.json({ success: false });
 
-        const message = await Message.create({
-          senderId,
-          receiverId,
-          file: {
-            url: result.secure_url,
-            name: req.file.originalname,
-            type: req.file.mimetype,
-            size: req.file.size,
-          },
-        });
+      const message = await Message.create({
+        senderId,
+        receiverId,
+        file: {
+          url: result.secure_url,
+          name: req.file.originalname,
+          type: req.file.mimetype,
+          size: req.file.size,
+        },
+      });
 
-        emitSocket(receiverId, message);
-        res.json({ success: true, newMessage: message });
-      }
-    );
+      // emit to receiver
+      const receiverSocketIds = getUserSocketIds(receiverId);
+      receiverSocketIds.forEach((sid) => io.to(sid).emit("newMessage", message));
+
+      // notify sender
+      const senderSocketIds = getUserSocketIds(senderId);
+      senderSocketIds.forEach((sid) => io.to(sid).emit("messageDelivered", message._id.toString()));
+
+      res.json({ success: true, newMessage: message });
+    });
 
     upload.end(req.file.buffer);
   } catch (error) {
+    console.error("sendFileMessage error:", error);
     res.json({ success: false, message: error.message });
-  }
-};
-
-// ================= SOCKET EMIT =================
-const emitSocket = (receiverId, message) => {
-  // userSockets is { userId: Set(socketId) }
-  if (!receiverId) return;
-
-  const setOfSocketIds = userSockets[receiverId];
-  if (!setOfSocketIds) return;
-
-  // send newMessage and messageSeenUpdate (if you want)
-  for (const socketId of setOfSocketIds) {
-    io.to(socketId).emit("newMessage", message);
-    // optionally, if you want to notify the receiver that the message was 'seen' upon delivery,
-    // you can emit other events here (but typically seen is after they open).
-  }
-
-  // Also notify sender(s) that message was 'delivered' to the server/forwarded
-  // If you want, fetch sender sockets and emit messageDelivered
-  const senderSockets = userSockets[message.senderId];
-  if (senderSockets) {
-    for (const sid of senderSockets) {
-      io.to(sid).emit("messageDelivered", message._id);
-    }
   }
 };

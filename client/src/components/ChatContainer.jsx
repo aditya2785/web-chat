@@ -58,13 +58,58 @@ const ChatContainer = () => {
     emitTyping();
   };
 
+  // 🔥 FIXED IMAGE UPLOAD WITH COMPRESSION
+  const compressImage = (file) =>
+    new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const maxSize = 900;
+
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxSize) {
+              height *= maxSize / width;
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width *= maxSize / height;
+              height = maxSize;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedData = canvas.toDataURL("image/jpeg", 0.7);
+          resolve(compressedData);
+        };
+      };
+    });
+
   const handleSendImage = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = async () => await sendMessage({ image: reader.result });
-    reader.readAsDataURL(file);
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image too large. Max 10MB.");
+      return;
+    }
+
+    const compressed = await compressImage(file);
+    await sendMessage({ image: compressed });
   };
 
   const handleSendFile = async (e) => {
@@ -160,7 +205,7 @@ const ChatContainer = () => {
         </div>
       </div>
 
-      {/* ONLY THIS PART SCROLLS */}
+      {/* CHAT LIST */}
       <div
         ref={chatBodyRef}
         onScroll={handleScroll}
@@ -214,7 +259,7 @@ const ChatContainer = () => {
         <div ref={scrollEndRef}></div>
       </div>
 
-      {/* FIXED INPUT */}
+      {/* INPUT */}
       <form
         onSubmit={handleSendMessage}
         className="
@@ -230,7 +275,15 @@ const ChatContainer = () => {
           className="flex-1 bg-gray-800 p-3 rounded-full text-white outline-none"
         />
 
-        <input type="file" hidden id="imgUpload" accept="image/*" onChange={handleSendImage} />
+        {/* 🔥 FIXED INPUT FOR MOBILE CAMERA */}
+        <input
+          type="file"
+          hidden
+          id="imgUpload"
+          accept="image/*"
+          capture="environment"
+          onChange={handleSendImage}
+        />
         <label htmlFor="imgUpload">
           <img src={assets.gallery_icon} className="w-6 cursor-pointer" />
         </label>
