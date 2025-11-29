@@ -15,21 +15,11 @@ export const ChatProvider = ({ children }) => {
 
   const [mobileView, setMobileView] = useState("sidebar");
 
+  // track window focus for notifications
   const [windowFocused, setWindowFocused] = useState(true);
 
-  const { socket, axios, authUser } = useContext(AuthContext);
+  const { socket, axios, authUser, onlineUsers } = useContext(AuthContext);
 
-  // ---------------------------------------
-  // 🔥 ALWAYS store latest users in ref to avoid stale closure bugs
-  // ---------------------------------------
-  const usersRef = useRef([]);
-  useEffect(() => {
-    usersRef.current = users;
-  }, [users]);
-
-  // ---------------------------------------
-  // 🔥 store selectedUserId in ref (stable)
-  // ---------------------------------------
   const selectedUserIdRef = useRef(null);
   useEffect(() => {
     selectedUserIdRef.current = selectedUser?._id || null;
@@ -37,33 +27,30 @@ export const ChatProvider = ({ children }) => {
 
   const setSelectedUser = (user) => {
     _setSelectedUser(user);
+
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       setMobileView("chat");
     }
   };
 
-  // ---------------------------------------
-  // Focus tracking
-  // ---------------------------------------
+  // ======== Focus / Visibility Tracking ========
   useEffect(() => {
-    const onVis = () => setWindowFocused(!document.hidden);
+    const onVisibility = () => setWindowFocused(!document.hidden);
+    document.addEventListener("visibilitychange", onVisibility);
+
     const onFocus = () => setWindowFocused(true);
     const onBlur = () => setWindowFocused(false);
-
-    document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onFocus);
     window.addEventListener("blur", onBlur);
 
     return () => {
-      document.removeEventListener("visibilitychange", onVis);
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("blur", onBlur);
     };
   }, []);
 
-  // ---------------------------------------
-  // Request notification permission
-  // ---------------------------------------
+  // request notification permission
   useEffect(() => {
     if (!authUser) return;
     if ("Notification" in window && Notification.permission === "default") {
@@ -71,9 +58,7 @@ export const ChatProvider = ({ children }) => {
     }
   }, [authUser]);
 
-  // ---------------------------------------
-  // GET USERS
-  // ---------------------------------------
+  // =============== GET USERS ===============
   const getUsers = async () => {
     try {
       if (!authUser) return;
@@ -83,6 +68,7 @@ export const ChatProvider = ({ children }) => {
       if (data.success) {
         setUsers(data.users || []);
         setUnseenMessages(data.unseenMessages || {});
+        setMobileView("sidebar");
       } else {
         toast.error(data.message || "Failed to fetch users");
       }
@@ -92,9 +78,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // ---------------------------------------
-  // GET MESSAGES
-  // ---------------------------------------
+  // =============== GET MESSAGES ===============
   const getMessages = async (userId) => {
     try {
       if (!userId) return;
@@ -114,9 +98,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // ---------------------------------------
-  // SEND MESSAGE
-  // ---------------------------------------
+  // =============== SEND MESSAGE ===============
   const sendMessage = async (payload) => {
     try {
       if (!selectedUser?._id) return;
@@ -138,9 +120,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // ---------------------------------------
-  // TYPING
-  // ---------------------------------------
+  // =============== TYPING EVENT ===============
   const emitTyping = () => {
     if (!socket || !selectedUser || !authUser) return;
 
@@ -150,86 +130,85 @@ export const ChatProvider = ({ children }) => {
     });
   };
 
-  // ---------------------------------------
-  // 🔥 FIXED SOCKET LISTENERS — stable & instant
-  // ---------------------------------------
+  // =============== SOCKET LISTENERS ===============
   useEffect(() => {
     if (!socket || !authUser) return;
 
-    const handleNewMessage = (message) => {
-      const openChatId = selectedUserIdRef.current;
-      const fromOther = message.senderId !== authUser._id;
+    const handleNewMessage = async (message) => {
+      try {
+        const openChatId = selectedUserIdRef.current;
+        const fromOther = message.senderId !== authUser._id;
 
-      // If chat is open — push message instantly
-      if (openChatId && message.senderId === openChatId) {
-        setMessages((prev) => [...prev, message]);
-        axios.put(`/api/messages/mark/${message._id}`).catch(() => {});
-        setAutoScroll(true);
-      } else {
-        // Increase unseen count
-        setUnseenMessages((prev) => ({
-          ...prev,
-          [message.senderId]: (prev[message.senderId] || 0) + 1,
-        }));
-      }
+        if (openChatId && message.senderId === openChatId) {
+          setMessages((prev) => [...prev, message]);
 
-      // desktop/mobile notification
-      if (fromOther) {
-        const showNotif = !windowFocused || document.hidden;
-
-        if (
-          showNotif &&
-          "Notification" in window &&
-          Notification.permission === "granted"
-        ) {
-          const sender =
-            usersRef.current.find(
-              (u) => String(u._id) === String(message.senderId)
-            ) || null;
-
-          if (!sender) return;
-
-          const title = sender.fullName || "New message";
-          const body = message.text
-            ? message.text
-            : message.image
-            ? "📷 Photo"
-            : message.file
-            ? `📎 ${message.file.name}`
-            : "Voice message";
-
-          const notif = new Notification(title, {
-            body,
-            icon: sender.profilePic,
-            tag: `chat-${message.senderId}`,
-          });
-
-          notif.onclick = () => {
-            window.focus();
-            setSelectedUser(sender);
-            if (window.innerWidth < 768) setMobileView("chat");
-          };
+          axios.put(`/api/messages/mark/${message._id}`).catch(() => {});
+          setAutoScroll(true);
+        } else {
+          setUnseenMessages((prev) => ({
+            ...prev,
+            [message.senderId]: (prev[message.senderId] || 0) + 1,
+          }));
         }
+
+        // Show notification only when NOT focused
+        if (fromOther) {
+          const showNotification =
+            typeof window !== "undefined" &&
+            (!windowFocused || document.hidden);
+
+          if (
+            showNotification &&
+            "Notification" in window &&
+            Notification.permission === "granted"
+          ) {
+            const sender =
+              users.find(
+                (u) => String(u._id) === String(message.senderId)
+              ) || null;
+
+            if (!sender) return; // FIX #3
+
+            const title = sender.fullName || "New message";
+            const body = message.text
+              ? message.text
+              : message.image
+              ? "📷 Photo"
+              : message.file
+              ? `📎 ${message.file.name}`
+              : "New message";
+
+            const notif = new Notification(title, {
+              body,
+              tag: `chat-${message.senderId}`,
+              icon: sender.profilePic || undefined,
+            });
+
+            notif.onclick = () => {
+              window.focus();
+              setSelectedUser(sender);
+
+              // FIX #2 — Only mobile should switch to chat
+              if (window.innerWidth < 768) {
+                setMobileView("chat");
+              }
+            };
+          }
+        }
+      } catch (err) {
+        console.error("handleNewMessage error:", err);
       }
     };
 
     const handleDelivered = (id) => {
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id.toString() === id.toString()
-            ? { ...msg, delivered: true }
-            : msg
-        )
+        prev.map((msg) => (msg._id === id ? { ...msg, delivered: true } : msg))
       );
     };
 
-    const handleSeen = (id) => {
+    const handleSeenUpdate = (id) => {
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id.toString() === id.toString()
-            ? { ...msg, seen: true }
-            : msg
-        )
+        prev.map((msg) => (msg._id === id ? { ...msg, seen: true } : msg))
       );
     };
 
@@ -240,29 +219,25 @@ export const ChatProvider = ({ children }) => {
       }, 2000);
     };
 
-    // attach listeners
     socket.on("newMessage", handleNewMessage);
     socket.on("messageDelivered", handleDelivered);
-    socket.on("messageSeenUpdate", handleSeen);
+    socket.on("messageSeenUpdate", handleSeenUpdate);
     socket.on("typing", handleTyping);
 
-    // cleanup
     return () => {
       socket.off("newMessage", handleNewMessage);
       socket.off("messageDelivered", handleDelivered);
-      socket.off("messageSeenUpdate", handleSeen);
+      socket.off("messageSeenUpdate", handleSeenUpdate);
       socket.off("typing", handleTyping);
     };
-  }, [socket, authUser, axios]);
+  }, [socket, authUser, axios, windowFocused]); // FIX #1 → removed `users`
 
-  // ---------------------------------------
-  // INITIAL USERS LOAD (only once)
-  // ---------------------------------------
+  // reload user list
   useEffect(() => {
     if (authUser?._id) {
       getUsers();
     }
-  }, [authUser]);
+  }, [authUser, onlineUsers]);
 
   return (
     <ChatContext.Provider
