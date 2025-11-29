@@ -32,8 +32,14 @@ const messageSchema = new mongoose.Schema(
       default: ""
     },
 
-    // 🎤 Voice Message (Cloud URL)
+    // 🎤 Voice Message (Cloud URL OR base64 from frontend)
     voice: {
+      type: String,
+      default: ""
+    },
+
+    // 🎤 Audio (base64 support from frontend)
+    audio: {
       type: String,
       default: ""
     },
