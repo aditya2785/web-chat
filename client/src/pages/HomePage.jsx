@@ -15,7 +15,7 @@ const HomePage = () => {
 
   const navigate = useNavigate();
 
-  // Always show sidebar on mobile when page loads
+  // 🔥 FIX: When HomePage loads, ALWAYS show sidebar on mobile
   useEffect(() => {
     setMobileView("sidebar");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -43,11 +43,11 @@ const HomePage = () => {
         </div>
 
         {/* Chat Area */}
-        <div className="flex flex-col min-h-0 overflow-hidden">
+        <div className="h-full flex flex-col overflow-hidden">
           <ChatContainer />
         </div>
 
-        {/* Right Sidebar — ALWAYS VISIBLE */}
+        {/* Right Sidebar — ALWAYS VISIBLE ON DESKTOP */}
         <div className="border-l border-gray-700 bg-[#1e293b] h-full overflow-hidden">
           <RightSidebar />
         </div>
@@ -56,25 +56,25 @@ const HomePage = () => {
       {/* ================ MOBILE VIEW ================ */}
       <div className="md:hidden w-full h-full relative overflow-hidden">
 
-        {/* ---- Sidebar (full screen) ---- */}
+        {/* ----------- Sidebar (FULL SCREEN) ----------- */}
         {mobileView === "sidebar" && (
           <div className="absolute inset-0 bg-[#1e293b] overflow-hidden">
             <Sidebar />
           </div>
         )}
 
-        {/* ---- Chat Screen (full screen) ---- */}
+        {/* ----------- Chat (FULL SCREEN) ----------- */}
         {mobileView === "chat" && selectedUser && (
           <div className="absolute inset-0 bg-[#0f172a] overflow-hidden">
 
-            {/* TOP BAR */}
+            {/* TOP BAR (fixed) */}
             <div className="flex items-center gap-4 px-4 py-3 bg-[#1e293b] border-b border-gray-700">
-
+              
               {/* Back Button */}
               <button
                 onClick={() => {
                   setSelectedUser(null);
-                  setMobileView("sidebar");
+                  setMobileView("sidebar"); // go back to user list
                   navigate("/");
                 }}
                 className="text-white text-2xl"
@@ -104,11 +104,10 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* Chat Screen (FIXED HEIGHT – DOES NOT MOVE UP) */}
-            <div className="flex flex-col h-[calc(100vh-56px)] min-h-0 overflow-hidden">
+            {/* Chat Screen */}
+            <div className="h-[calc(100vh-56px)] overflow-hidden">
               <ChatContainer />
             </div>
-
           </div>
         )}
 
