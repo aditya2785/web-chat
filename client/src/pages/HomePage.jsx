@@ -50,9 +50,8 @@ const HomePage = () => {
         {/* Right Sidebar */}
         {selectedUser && (
           <div className="border-l border-gray-700 bg-[#1e293b] h-full overflow-hidden">
-  <RightSidebar />
-</div>
-
+            <RightSidebar />
+          </div>
         )}
       </div>
 
