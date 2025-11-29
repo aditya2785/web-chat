@@ -93,6 +93,7 @@ const ChatContainer = () => {
   const [recordSeconds, setRecordSeconds] = useState(0);
   const recordTimerRef = useRef(null);
 
+  // voice preview (local blob url + base64 for upload)
   const [voicePreview, setVoicePreview] = useState(null);
   const [voicePreviewBase64, setVoicePreviewBase64] = useState(null);
 
@@ -152,54 +153,157 @@ const ChatContainer = () => {
     reader.readAsDataURL(file);
   };
 
-  /* ---------- Voice Recording ---------- */
+  /* ---------- Recording helpers ---------- */
+  const startRecordTimer = () => {
+    setRecordSeconds(0);
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    recordTimerRef.current = setInterval(() => {
+      setRecordSeconds((s) => s + 1);
+    }, 1000);
+  };
+
+  const stopRecordTimer = () => {
+    if (recordTimerRef.current) {
+      clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+  };
+
+  /* ---------- Start recording ---------- */
   const startRecording = async () => {
+    // prevent starting if already recording or preview present
+    if (recording || voicePreview) return;
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
 
-      mediaRecorder.current = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      // choose supported mimeType
+      let mime = "audio/webm";
+      if (!MediaRecorder.isTypeSupported(mime)) {
+        mime = "audio/webm;codecs=opus";
+        if (!MediaRecorder.isTypeSupported(mime)) {
+          mime = "";
+        }
+      }
+
+      mediaRecorder.current = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
       audioChunks.current = [];
 
       mediaRecorder.current.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunks.current.push(e.data);
+        if (e.data && e.data.size > 0) audioChunks.current.push(e.data);
       };
 
       mediaRecorder.current.start();
       setRecording(true);
-    } catch {
-      toast.error("Microphone blocked");
+      startRecordTimer();
+    } catch (err) {
+      console.error("startRecording error:", err);
+      toast.error("Microphone blocked or not available");
+      setRecording(false);
+      stopRecordTimer();
+      try {
+        mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+      } catch {}
     }
   };
 
+  /* ---------- Stop recording and prepare preview ---------- */
   const stopRecording = () => {
+    // if not recording, ignore
+    if (!recording) return;
+
     setRecording(false);
+    stopRecordTimer();
 
-    if (!mediaRecorder.current) return;
+    if (!mediaRecorder.current) {
+      // cleanup
+      try {
+        mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+      } catch {}
+      return;
+    }
+
+    // assign onstop BEFORE calling stop
     mediaRecorder.current.onstop = () => {
-      const blob = new Blob(audioChunks.current, { type: "audio/webm" });
-      const localURL = URL.createObjectURL(blob);
+      try {
+        const blob = new Blob(audioChunks.current, { type: "audio/webm" });
+        const localURL = URL.createObjectURL(blob);
+        setVoicePreview(localURL);
 
-      setVoicePreview(localURL);
-
-      const reader = new FileReader();
-      reader.onloadend = () => setVoicePreviewBase64(reader.result);
-      reader.readAsDataURL(blob);
-
-      mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+        const reader = new FileReader();
+        reader.onloadend = () => setVoicePreviewBase64(reader.result);
+        reader.readAsDataURL(blob);
+      } catch (err) {
+        console.error("onstop error:", err);
+        toast.error("Failed to prepare recording");
+      } finally {
+        try {
+          mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+        } catch {}
+      }
     };
 
-    mediaRecorder.current.stop();
+    try {
+      if (mediaRecorder.current.state !== "inactive") {
+        mediaRecorder.current.stop();
+      } else {
+        // if already inactive, trigger onstop manually
+        mediaRecorder.current.onstop();
+      }
+    } catch (err) {
+      console.error("stopRecording error:", err);
+    }
   };
 
-  const cancelPreview = () => {
+  /* ---------- Cancel recording (discard) ---------- */
+  const cancelRecording = () => {
+    // stop and discard collected chunks
+    setRecording(false);
+    stopRecordTimer();
+
+    if (mediaRecorder.current) {
+      // replace onstop to just cleanup without creating preview
+      mediaRecorder.current.onstop = () => {
+        audioChunks.current = [];
+        try {
+          mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+        } catch {}
+      };
+      if (mediaRecorder.current.state !== "inactive") {
+        try {
+          mediaRecorder.current.stop();
+        } catch {}
+      } else {
+        // ensure cleanup
+        audioChunks.current = [];
+        try {
+          mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+        } catch {}
+      }
+    } else {
+      audioChunks.current = [];
+      try {
+        mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+      } catch {}
+    }
+
     setVoicePreview(null);
     setVoicePreviewBase64(null);
   };
 
+  /* ---------- Send voice preview to backend ---------- */
   const sendVoicePreview = async () => {
-    await sendMessage({ voice: voicePreviewBase64 });
-    cancelPreview();
+    if (!voicePreviewBase64) return;
+    try {
+      // backend expects `audio` field in sendMessage (base64)
+      await sendMessage({ audio: voicePreviewBase64 });
+      setVoicePreview(null);
+      setVoicePreviewBase64(null);
+    } catch (err) {
+      console.error("sendVoicePreview error:", err);
+      toast.error("Failed to send voice note");
+    }
   };
 
   /* ---------- If no user ---------- */
@@ -214,7 +318,6 @@ const ChatContainer = () => {
 
   return (
     <div className="flex flex-col h-full bg-[#0f172a]">
-
       {/* ------------ HEADER ------------ */}
       <div className="flex items-center gap-3 px-4 py-3 bg-[#1e293b] border-b border-gray-700">
         <img
@@ -242,6 +345,7 @@ const ChatContainer = () => {
       >
         {messages.map((msg) => {
           const isMe = msg.senderId === authUser._id;
+          const audioSrc = msg.audio || msg.voice || msg.file?.audio || null;
 
           return (
             <div key={msg._id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
@@ -260,9 +364,9 @@ const ChatContainer = () => {
                   />
                 )}
 
-                {msg.voice && (
+                {audioSrc && (
                   <div className="mt-2">
-                    <AudioPlayer src={msg.voice} isMe={isMe} />
+                    <AudioPlayer src={audioSrc} isMe={isMe} />
                   </div>
                 )}
 
@@ -276,18 +380,36 @@ const ChatContainer = () => {
         <div ref={scrollEndRef}></div>
       </div>
 
-      {/* ------------ VOICE PREVIEW ------------ */}
+      {/* ------------ VOICE PREVIEW (compact, professional) ------------ */}
       {voicePreview && (
-        <div className="p-4 bg-black/80 flex items-center gap-3 border-t border-gray-700">
-          <audio controls src={voicePreview} className="flex-1" />
+        <div className="flex items-center gap-3 px-4 py-3 bg-[#0f172a] border-t border-gray-700">
+          {/* small audio player */}
+          <div className="flex-1">
+            <AudioPlayer src={voicePreview} isMe={true} />
+            <div className="text-xs text-gray-300 mt-2">
+              {Math.floor(recordSeconds / 60)
+                .toString()
+                .padStart(2, "0")}
+              :
+              {(recordSeconds % 60).toString().padStart(2, "0")}
+            </div>
+          </div>
 
-          <button onClick={cancelPreview} className="px-3 py-1 bg-red-600 rounded-lg text-white">
-            Cancel
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={cancelRecording}
+              className="px-3 py-1 bg-red-600 rounded-lg text-white text-sm"
+            >
+              Cancel
+            </button>
 
-          <button onClick={sendVoicePreview} className="px-4 py-1 bg-green-500 rounded-lg text-white">
-            Send
-          </button>
+            <button
+              onClick={sendVoicePreview}
+              className="px-4 py-1 bg-green-500 rounded-lg text-white text-sm"
+            >
+              Send
+            </button>
+          </div>
         </div>
       )}
 
@@ -312,18 +434,54 @@ const ChatContainer = () => {
           <label htmlFor="fileUpload" className="cursor-pointer text-xl text-white">📎</label>
           <input type="file" id="fileUpload" hidden onChange={handleSendFile} />
 
-          {/* TELEGRAM STYLE MIC */}
-          <button
-            type="button"
-            onPointerDown={startRecording}
-            onPointerUp={stopRecording}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-500 text-white transition"
-          >
-            <svg width="20" height="20" fill="white" viewBox="0 0 24 24">
-              <path d="M12 14a3 3 0 003-3V6a3 3 0 10-6 0v5a3 3 0 003 3z"/>
-              <path d="M19 11a1 1 0 10-2 0 5 5 0 01-10 0 1 1 0 10-2 0 7 7 0 006 6.92V21a1 1 0 102 0v-3.08A7 7 0 0019 11z"/>
-            </svg>
-          </button>
+          {/* TELEGRAM-STYLE MIC: small professional button */}
+          <div className="relative">
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                startRecording();
+              }}
+              onPointerUp={(e) => {
+                e.preventDefault();
+                stopRecording();
+              }}
+              onPointerCancel={(e) => {
+                e.preventDefault();
+                cancelRecording();
+              }}
+              onPointerLeave={(e) => {
+                // if user drags out while holding, cancel recording for safer UX
+                if (recording) cancelRecording();
+              }}
+              className={`w-10 h-10 flex items-center justify-center rounded-full ${
+                recording ? "bg-red-600" : "bg-blue-600 hover:bg-blue-500"
+              } text-white transition-shadow`}
+              aria-label="Hold to record"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M12 14a3 3 0 003-3V6a3 3 0 10-6 0v5a3 3 0 003 3z" fill="white"/>
+                <path d="M19 11a1 1 0 10-2 0 5 5 0 01-10 0 1 1 0 10-2 0 7 7 0 006 6.92V21a1 1 0 102 0v-3.08A7 7 0 0019 11z" fill="white"/>
+              </svg>
+            </button>
+
+            {/* small recording indicator above mic */}
+            {recording && (
+              <div className="absolute -top-14 right-0 w-44 bg-black/80 text-white rounded-md p-2 flex items-center justify-between z-50">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <div className="text-sm">Recording</div>
+                </div>
+                <div className="text-xs">
+                  {Math.floor(recordSeconds / 60)
+                    .toString()
+                    .padStart(2, "0")}
+                  :
+                  {(recordSeconds % 60).toString().padStart(2, "0")}
+                </div>
+              </div>
+            )}
+          </div>
         </form>
       )}
 
