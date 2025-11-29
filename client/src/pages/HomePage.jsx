@@ -41,12 +41,13 @@ const HomePage = () => {
           <Sidebar />
         </div>
 
-        {/* Chat Area (FIXED HEIGHT BEHAVIOR) */}
-        <div className="flex flex-col min-h-0 overflow-hidden">
+        {/* Chat Area — FIXED HEIGHT (IMPORTANT FIX) */}
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* h-full instead of min-h-0 */}
           <ChatContainer />
         </div>
 
-        {/* Right Sidebar ALWAYS visible */}
+        {/* Right Sidebar */}
         <div className="border-l border-gray-700 bg-[#1e293b] h-full overflow-hidden">
           <RightSidebar />
         </div>
@@ -103,8 +104,8 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* Chat Screen (MOBILE FIXED HEIGHT — DO NOT MOVE UP) */}
-            <div className="flex flex-col h-[calc(100vh-56px)] min-h-0 overflow-hidden">
+            {/* Fixed height Chat (Mobile) */}
+            <div className="flex flex-col h-[calc(100vh-56px)] overflow-hidden">
               <ChatContainer />
             </div>
 
