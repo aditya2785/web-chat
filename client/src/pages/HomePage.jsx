@@ -104,10 +104,11 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* Chat Screen (FIXED HEIGHT) */}
-            <div className="min-h-[calc(100vh-56px)] overflow-y-auto">
+            {/* Chat Screen (FIXED HEIGHT – DOES NOT MOVE UP) */}
+            <div className="flex flex-col h-[calc(100vh-56px)] min-h-0 overflow-hidden">
               <ChatContainer />
             </div>
+
           </div>
         )}
 
