@@ -94,16 +94,17 @@ export const markMessageAsSeen = async (req, res) => {
   }
 };
 
-// ================= SEND TEXT / IMAGE =================
+// ================= SEND TEXT / IMAGE / AUDIO (BASE64) =================
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image, file, audio } = req.body;
+    const { text, image, file, voice } = req.body; // 🔥 voice = base64 audio
     const senderId = req.user._id;
     const receiverId = req.params.id;
 
     let imageUrl = "";
+    let voiceUrl = "";
 
-    // 🔥 FIXED: mobile images require resource_type auto
+    // IMAGE UPLOAD
     if (image) {
       const upload = await cloudinary.uploader.upload(image, {
         folder: "chat-images",
@@ -112,13 +113,19 @@ export const sendMessage = async (req, res) => {
       imageUrl = upload.secure_url;
     }
 
+    // AUDIO (BASE64) – no cloudinary needed
+    if (voice) {
+      voiceUrl = voice;
+    }
+
     const message = await Message.create({
       senderId,
       receiverId,
+      type: voice ? "voice" : image ? "image" : "text",
       text: text || "",
-      image: imageUrl || "",
+      image: imageUrl,
+      voice: voiceUrl,
       file: file || null,
-      audio: audio || "",
     });
 
     // Emit to receiver
@@ -138,45 +145,7 @@ export const sendMessage = async (req, res) => {
   }
 };
 
-// ================= SEND VOICE =================
-export const sendVoiceMessage = async (req, res) => {
-  try {
-    const senderId = req.user._id;
-    const receiverId = req.params.id;
-
-    const upload = cloudinary.uploader.upload_stream(
-      { resource_type: "video" },
-      async (error, result) => {
-        if (error) return res.json({ success: false });
-
-        const message = await Message.create({
-          senderId,
-          receiverId,
-          audio: result.secure_url,
-        });
-
-        const receiverSocketIds = getUserSocketIds(receiverId);
-        receiverSocketIds.forEach((sid) =>
-          io.to(sid).emit("newMessage", message)
-        );
-
-        const senderSocketIds = getUserSocketIds(senderId);
-        senderSocketIds.forEach((sid) =>
-          io.to(sid).emit("messageDelivered", message._id.toString())
-        );
-
-        res.json({ success: true, newMessage: message });
-      }
-    );
-
-    upload.end(req.file.buffer);
-  } catch (error) {
-    console.error("sendVoiceMessage error:", error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-// ================= SEND FILE =================
+// ================= SEND FILE (CLOUDINARY) =================
 export const sendFileMessage = async (req, res) => {
   try {
     const senderId = req.user._id;
@@ -190,10 +159,11 @@ export const sendFileMessage = async (req, res) => {
         const message = await Message.create({
           senderId,
           receiverId,
+          type: "file",
           file: {
             url: result.secure_url,
             name: req.file.originalname,
-            type: req.file.mimetype,
+            mimeType: req.file.mimetype,
             size: req.file.size,
           },
         });
