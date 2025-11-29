@@ -12,14 +12,29 @@ const RightSidebar = () => {
   const [msgImages, setMsgImages] = useState([]);
   const navigate = useNavigate();
 
+  // Collect images
   useEffect(() => {
     if (!messages) return;
     const imgs = messages.filter((m) => m.image).map((m) => m.image);
     setMsgImages(imgs);
   }, [messages]);
 
-  if (!selectedUser) return null;
+  // ==============================
+  // 🚨 PLACEHOLDER FOR NO USER SELECTED
+  // ==============================
+  if (!selectedUser) {
+    return (
+      <div className="h-full w-full bg-[#111b21] text-gray-400 flex items-center justify-center">
+        <p className="text-center text-sm">
+          Select a user from the left to view contact info
+        </p>
+      </div>
+    );
+  }
 
+  // ==============================
+  // Normal Sidebar UI
+  // ==============================
   const isOwnProfile = selectedUser._id === authUser?._id;
   const isOnline = onlineUsers?.includes(selectedUser._id);
 
@@ -38,17 +53,13 @@ const RightSidebar = () => {
           className="w-32 h-32 rounded-full object-cover border-4 border-[#00a884]"
         />
 
-        {/* FULL NAME + STATUS TEXT */}
         <h1 className="text-xl font-semibold mt-4 flex items-center gap-2">
           {selectedUser.fullName}
-
-          {/* Green Dot */}
           {isOnline && (
             <span className="w-3 h-3 rounded-full bg-green-500 border-2 border-[#111b21]"></span>
           )}
         </h1>
 
-        {/* ONLINE / OFFLINE STATUS */}
         <p className="text-sm mt-1">
           {isOnline ? (
             <span className="text-green-400 font-medium">● Online</span>
@@ -64,7 +75,7 @@ const RightSidebar = () => {
         {isOwnProfile && (
           <button
             onClick={() => navigate("/profile")}
-            className="mt-4 px-5 py-2 bg-[#00a884] rounded-full text-white hover:bg-[#029973]"
+            className="mt-4 px-5 py-2 bg-[#00a884] rounded-full hover:bg-[#029973]"
           >
             Edit Profile
           </button>
@@ -99,7 +110,7 @@ const RightSidebar = () => {
         {isOwnProfile && (
           <button
             onClick={() => navigate("/profile")}
-            className="bg-[#202c33] py-3 rounded-lg text-center hover:bg-[#2a3942]"
+            className="bg-[#202c33] py-3 rounded-lg hover:bg-[#2a3942]"
           >
             Update Profile
           </button>
@@ -107,7 +118,7 @@ const RightSidebar = () => {
 
         <button
           onClick={logout}
-          className="bg-red-600 py-3 rounded-lg hover:bg-red-700 text-center"
+          className="bg-red-600 py-3 rounded-lg hover:bg-red-700"
         >
           Log Out
         </button>
