@@ -47,12 +47,10 @@ const HomePage = () => {
           <ChatContainer />
         </div>
 
-        {/* Right Sidebar */}
-        {selectedUser && (
-          <div className="border-l border-gray-700 bg-[#1e293b] h-full overflow-hidden">
-            <RightSidebar />
-          </div>
-        )}
+        {/* Right Sidebar — ALWAYS VISIBLE ON DESKTOP */}
+        <div className="border-l border-gray-700 bg-[#1e293b] h-full overflow-hidden">
+          <RightSidebar />
+        </div>
       </div>
 
       {/* ================ MOBILE VIEW ================ */}
@@ -76,7 +74,7 @@ const HomePage = () => {
               <button
                 onClick={() => {
                   setSelectedUser(null);
-                  setMobileView("sidebar");   // go back to user list
+                  setMobileView("sidebar"); // go back to user list
                   navigate("/");
                 }}
                 className="text-white text-2xl"
