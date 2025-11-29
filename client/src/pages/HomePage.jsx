@@ -15,10 +15,9 @@ const HomePage = () => {
 
   const navigate = useNavigate();
 
-  // 🔥 FIX: When HomePage loads, ALWAYS show sidebar on mobile
+  // Always show sidebar first on mobile
   useEffect(() => {
     setMobileView("sidebar");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isTyping = selectedUser && !!typingUsers?.[selectedUser._id];
@@ -42,41 +41,38 @@ const HomePage = () => {
           <Sidebar />
         </div>
 
-        {/* Chat Area */}
-        <div className="h-full flex flex-col overflow-hidden">
+        {/* Chat Area (FIXED HEIGHT BEHAVIOR) */}
+        <div className="flex flex-col min-h-0 overflow-hidden">
           <ChatContainer />
         </div>
 
-        {/* Right Sidebar */}
-        {selectedUser && (
-          <div className="border-l border-gray-700 bg-[#1e293b] h-full overflow-hidden">
-            <RightSidebar />
-          </div>
-        )}
+        {/* Right Sidebar ALWAYS visible */}
+        <div className="border-l border-gray-700 bg-[#1e293b] h-full overflow-hidden">
+          <RightSidebar />
+        </div>
       </div>
 
       {/* ================ MOBILE VIEW ================ */}
       <div className="md:hidden w-full h-full relative overflow-hidden">
 
-        {/* ----------- Sidebar (FULL SCREEN) ----------- */}
+        {/* Sidebar Fullscreen */}
         {mobileView === "sidebar" && (
           <div className="absolute inset-0 bg-[#1e293b] overflow-hidden">
             <Sidebar />
           </div>
         )}
 
-        {/* ----------- Chat (FULL SCREEN) ----------- */}
+        {/* Chat Fullscreen */}
         {mobileView === "chat" && selectedUser && (
           <div className="absolute inset-0 bg-[#0f172a] overflow-hidden">
 
-            {/* TOP BAR (fixed) */}
+            {/* TOP BAR */}
             <div className="flex items-center gap-4 px-4 py-3 bg-[#1e293b] border-b border-gray-700">
-              
-              {/* Back Button */}
+
               <button
                 onClick={() => {
                   setSelectedUser(null);
-                  setMobileView("sidebar");   // go back to user list
+                  setMobileView("sidebar");
                   navigate("/");
                 }}
                 className="text-white text-2xl"
@@ -94,6 +90,7 @@ const HomePage = () => {
                 <span className="text-white text-sm font-medium">
                   {selectedUser?.fullName}
                 </span>
+
                 <span className="text-[11px] text-gray-300">
                   {isTyping ? (
                     <span className="text-blue-300">Typing...</span>
@@ -106,10 +103,11 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* Chat Screen */}
-            <div className="h-[calc(100vh-56px)] overflow-hidden">
+            {/* Chat Screen (MOBILE FIXED HEIGHT — DO NOT MOVE UP) */}
+            <div className="flex flex-col h-[calc(100vh-56px)] min-h-0 overflow-hidden">
               <ChatContainer />
             </div>
+
           </div>
         )}
 

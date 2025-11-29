@@ -29,7 +29,7 @@ const ChatContainer = () => {
 
   const isTyping = typingUsers?.[selectedUser?._id];
 
-  // ================= AUTO SCROLL =================
+  // AUTO SCROLL
   const handleScroll = () => {
     const el = chatBodyRef.current;
     if (!el) return;
@@ -47,7 +47,7 @@ const ChatContainer = () => {
     if (selectedUser) getMessages(selectedUser._id);
   }, [selectedUser]);
 
-  // ================= SEND TEXT =================
+  // SEND TEXT
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -60,32 +60,18 @@ const ChatContainer = () => {
     emitTyping();
   };
 
-  // ================= MOBILE-SAFE IMAGE UPLOAD =================
+  // SEND IMAGE
   const handleSendImage = async (e) => {
     const file = e.target.files?.[0];
-    if (!file) {
-      toast.error("No image selected");
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Invalid file");
-      return;
-    }
+    if (!file) return toast.error("No image selected");
+    if (!file.type.startsWith("image/")) return toast.error("Invalid file");
 
     try {
       const reader = new FileReader();
-
       reader.onload = async () => {
-        if (!reader.result) {
-          toast.error("Image load failed");
-          return;
-        }
-
-        // send base64 directly
+        if (!reader.result) return toast.error("Image load failed");
         await sendMessage({ image: reader.result });
       };
-
       reader.onerror = () => toast.error("Mobile image read failed");
       reader.readAsDataURL(file);
     } catch {
@@ -93,13 +79,11 @@ const ChatContainer = () => {
     }
   };
 
-  // ================= SEND FILE =================
+  // SEND FILE
   const handleSendFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
-
     reader.onloadend = async () => {
       await sendMessage({
         file: {
@@ -110,11 +94,10 @@ const ChatContainer = () => {
         },
       });
     };
-
     reader.readAsDataURL(file);
   };
 
-  // ================= AUDIO RECORDING =================
+  // AUDIO RECORDING
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -131,11 +114,9 @@ const ChatContainer = () => {
       mediaRecorder.current.onstop = async () => {
         const audioBlob = new Blob(audioChunks.current, { type: "audio/webm" });
         const reader = new FileReader();
-
         reader.onloadend = async () => {
           await sendMessage({ audio: reader.result });
         };
-
         reader.readAsDataURL(audioBlob);
       };
 
@@ -151,10 +132,10 @@ const ChatContainer = () => {
     }
   };
 
-  // ================= NO USER SELECTED =================
+  // NO USER SELECTED
   if (!selectedUser) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-400 bg-[#0f172a]">
+      <div className="flex items-center justify-center min-h-full text-gray-400 bg-[#0f172a]">
         Select a chat to start messaging
       </div>
     );
@@ -162,9 +143,9 @@ const ChatContainer = () => {
 
   const isOnline = onlineUsers?.includes(selectedUser._id);
 
-  // ================= UI =================
+  // UI
   return (
-    <div className="flex flex-col w-full h-full bg-[#0f172a] overflow-hidden">
+    <div className="flex flex-col w-full min-h-0 bg-[#0f172a] overflow-hidden">
 
       {/* HEADER */}
       <div className="flex items-center gap-3 px-4 py-3 bg-[#1e293b] border-b border-gray-700">
@@ -194,7 +175,7 @@ const ChatContainer = () => {
       <div
         ref={chatBodyRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-3 md:px-5 py-4 space-y-4"
+        className="flex-1 min-h-0 overflow-y-auto px-3 md:px-5 py-4 space-y-4"
       >
         {messages.map((msg) => {
           const isMe = msg.senderId === authUser._id;
@@ -252,7 +233,7 @@ const ChatContainer = () => {
           className="flex-1 bg-gray-800 p-3 rounded-full text-white outline-none"
         />
 
-        {/* MOBILE CAMERA + GALLERY SUPPORT */}
+        {/* IMAGE */}
         <input
           type="file"
           id="imgUpload"
@@ -265,12 +246,13 @@ const ChatContainer = () => {
           <img src={assets.gallery_icon} className="w-6 cursor-pointer" />
         </label>
 
-        {/* FILE UPLOAD */}
+        {/* FILE */}
         <input type="file" hidden id="fileUpload" onChange={handleSendFile} />
         <label htmlFor="fileUpload" className="text-white text-xl cursor-pointer">
           📎
         </label>
 
+        {/* AUDIO OR SEND */}
         {!input.trim() ? (
           <button
             type="button"
